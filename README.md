@@ -147,6 +147,11 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - 用途：在正式跑大規模回填前，檢查 active companies / ETFs / watchlist / DB 覆蓋狀態
 - 用法：`python3 scripts/check_tw_readiness.py --config config/config_tw.yaml --min-active-companies 50 --min-active-etfs 20 --min-watchlist-size 70`
 
+`scripts/run_tw_phase1_check.sh`
+
+- 用途：把 Phase 1 的 readiness、plan、dry-run 串成一支預檢腳本
+- 用法：`bash scripts/run_tw_phase1_check.sh`
+
 `scripts/sync_tw_universe.py`
 
 - 用途：從 `FinMind` `TaiwanStockInfo` 同步台股股票池與基本 metadata 到 SQLite
