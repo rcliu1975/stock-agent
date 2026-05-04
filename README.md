@@ -52,6 +52,7 @@ stock-agent/
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
 ## 快速開始
@@ -198,6 +199,8 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - `FINMIND_API_TOKEN`
 
 未設定時會自動跳過 Telegram 發送，不會中斷 pipeline。
+
+`main.py` 與 `scripts/backfill_history.py` 會自動載入 repo 根目錄下的 `.env`。
 
 ## 測試
 

@@ -12,6 +12,7 @@ if str(ROOT_DIR) not in sys.path:
 from src.core.backfill import backfill_history
 from src.core.config import load_config
 from src.core.database import connect, initialize
+from src.core.env import load_dotenv
 from src.core.logging_utils import setup_logging
 
 
@@ -30,6 +31,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    load_dotenv(ROOT_DIR)
     config = load_config(args.config)
     if args.symbols:
         config["universe"]["symbols"] = [item.strip() for item in args.symbols.split(",") if item.strip()]
