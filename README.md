@@ -137,6 +137,11 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - 用途：依 `stocks` 資料表分批回填台股市場資料，可選擇是否同時回填歷史 `signals`
 - 用法：`python3 scripts/backfill_tw_market_batches.py --config config/config_tw.yaml --start-date 2025-01-01 --end-date 2025-12-31 --batch-size 25 --company-limit 0 --etf-limit 0 --include-signals`
 
+`scripts/plan_tw_backfill.py`
+
+- 用途：檢查目前 active universe 與 DB 覆蓋範圍，並產生 Phase 1 / Phase 2 的建議回填命令
+- 用法：`python3 scripts/plan_tw_backfill.py --config config/config_tw.yaml --years 1 --batch-size 25 --company-limit 50 --etf-limit 20 --include-signals`
+
 `scripts/sync_tw_universe.py`
 
 - 用途：從 `FinMind` `TaiwanStockInfo` 同步台股股票池與基本 metadata 到 SQLite
