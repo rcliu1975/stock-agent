@@ -6,6 +6,8 @@ database_path: data/stock_agent.sqlite
 log_dir: logs
 
 universe:
+  source: db_top_liquidity
+  db_strategy: tw_top_companies_etfs
   symbols:
     - 2330.TW
     - 2317.TW
@@ -13,8 +15,8 @@ universe:
     - 2382.TW
 
 data_sources:
-  price: yfinance
-  fundamentals: builtin
+  price: finmind
+  fundamentals: finmind
   news: builtin
   social: builtin
 

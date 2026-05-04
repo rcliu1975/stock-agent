@@ -17,6 +17,7 @@ class PipelineTests(unittest.TestCase):
                 "currency": "TWD",
                 "database_path": str(tmp_path / "stock_agent.sqlite"),
                 "universe": {"symbols": ["2330.TW", "2454.TW"]},
+                "data_sources": {"price": "yfinance", "fundamentals": "builtin"},
                 "score_weights": {
                     "speculation": {"price_breakout": 25, "volume_breakout": 25, "price_alignment": 20, "social_heat": 20, "news_heat": 10},
                     "growth": {"revenue_yoy": 35, "eps_growth": 25, "gross_margin": 15, "roe": 15, "price_trend": 10},
@@ -37,6 +38,7 @@ class PipelineTests(unittest.TestCase):
                 "currency": "TWD",
                 "database_path": str(tmp_path / "stock_agent.sqlite"),
                 "universe": {"symbols": ["2330.TW", "2454.TW"]},
+                "data_sources": {"price": "yfinance", "fundamentals": "builtin"},
                 "score_weights": {
                     "speculation": {"price_breakout": 25, "volume_breakout": 25, "price_alignment": 20, "social_heat": 20, "news_heat": 10},
                     "growth": {"revenue_yoy": 35, "eps_growth": 25, "gross_margin": 15, "roe": 15, "price_trend": 10},
@@ -49,10 +51,10 @@ class PipelineTests(unittest.TestCase):
 
             original_fetch = yfinance_collector.fetch_price_history
 
-            def flaky_fetch(symbol: str, market: str, offline: bool = False):
+            def flaky_fetch(config: dict, symbol: str, market: str, offline: bool = False, start_date=None, end_date=None):
                 if symbol == "2454.TW":
                     raise RuntimeError("simulated fetch failure")
-                return original_fetch(symbol, market, offline=offline)
+                return original_fetch(symbol, market, offline=offline, start_date=start_date, end_date=end_date)
 
             with patch("src.core.pipeline.fetch_price_history", side_effect=flaky_fetch):
                 previous_disable = logging.root.manager.disable

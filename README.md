@@ -52,6 +52,7 @@ stock-agent/
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
 ## 快速開始
@@ -110,6 +111,71 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 
 - 用途：查看最近 pipeline run 與最新 signals
 - 用法：`python3 scripts/show_pipeline_status.py --db data/stock_agent.sqlite --market TW --limit 5`
+
+`scripts/backup_sqlite.sh`
+
+- 用途：在大量回填前備份 SQLite
+- 用法：`bash scripts/backup_sqlite.sh`
+
+`scripts/backfill_history.py`
+
+- 用途：安全回填 `daily_prices` 與 `technical_indicators`
+- 用法：`python3 scripts/backfill_history.py --config config/config_tw.yaml --start-date 2025-01-01 --end-date 2025-12-31 --symbols 2330.TW --chunk-size-days 90 --dry-run`
+
+`scripts/show_backfill_status.py`
+
+- 用途：查看 `backfill_checkpoints` 最新狀態與摘要
+- 用法：`python3 scripts/show_backfill_status.py --db data/stock_agent.sqlite --market TW --symbol 2330.TW --limit 10`
+
+`scripts/backfill_signals.py`
+
+- 用途：用既有 `daily_prices`、`technical_indicators`、`fundamentals` 回填歷史 `signals`
+- 用法：`python3 scripts/backfill_signals.py --config config/config_tw.yaml --start-date 2025-01-01 --end-date 2025-03-31 --symbols 2330.TW`
+
+`scripts/backfill_tw_market_batches.py`
+
+- 用途：依 `stocks` 資料表分批回填台股市場資料，可選擇是否同時回填歷史 `signals`
+- 用法：`python3 scripts/backfill_tw_market_batches.py --config config/config_tw.yaml --start-date 2025-01-01 --end-date 2025-12-31 --batch-size 25 --company-limit 0 --etf-limit 0 --include-signals`
+
+`scripts/plan_tw_backfill.py`
+
+- 用途：檢查目前 active universe 與 DB 覆蓋範圍，並產生 Phase 1 / Phase 2 的建議回填命令
+- 用法：`python3 scripts/plan_tw_backfill.py --config config/config_tw.yaml --years 1 --batch-size 25 --company-limit 50 --etf-limit 20 --include-signals`
+
+`scripts/check_tw_readiness.py`
+
+- 用途：在正式跑大規模回填前，檢查 active companies / ETFs / watchlist / DB 覆蓋狀態
+- 用法：`python3 scripts/check_tw_readiness.py --config config/config_tw.yaml --min-active-companies 50 --min-active-etfs 20 --min-watchlist-size 70`
+
+`scripts/run_tw_phase1_check.sh`
+
+- 用途：把 Phase 1 的 readiness、plan、dry-run 串成一支預檢腳本
+- 用法：`bash scripts/run_tw_phase1_check.sh`
+
+`scripts/sync_tw_universe.py`
+
+- 用途：從 `FinMind` `TaiwanStockInfo` 同步台股股票池與基本 metadata 到 SQLite
+- 用法：`python3 scripts/sync_tw_universe.py --config config/config_tw.yaml --exchanges twse,tpex --exclude-industries ETF,上櫃ETF,ETN --stock-id-pattern '^\\d{4}$'`
+
+`scripts/build_tw_watchlist.py`
+
+- 用途：從 DB 的 `daily_prices` 建立「前 50 大個股 + 前 20 大 ETF」追蹤名單 snapshot
+- 用法：`python3 scripts/build_tw_watchlist.py --config config/config_tw.yaml --companies 50 --etfs 20 --lookback-days 20`
+
+`scripts/show_watchlist.py`
+
+- 用途：查看最新 watchlist snapshot
+- 用法：`python3 scripts/show_watchlist.py --db data/stock_agent.sqlite --market TW --strategy tw_top_companies_etfs`
+
+`scripts/run_tw_automation.sh`
+
+- 用途：每日自動流程，包含備份、同步台股 universe、補近期資料、重建 watchlist、產生日報
+- 用法：`bash scripts/run_tw_automation.sh`
+
+`scripts/install_tw_systemd_user.sh`
+
+- 用途：安裝 `systemd --user` 版本的台股每日排程
+- 用法：`bash scripts/install_tw_systemd_user.sh`
 
 ## 設定檔說明
 
@@ -178,7 +244,13 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
 
+若後續要接 FinMind，先準備：
+
+- `FINMIND_API_TOKEN`
+
 未設定時會自動跳過 Telegram 發送，不會中斷 pipeline。
+
+`main.py` 與 `scripts/backfill_history.py` 會自動載入 repo 根目錄下的 `.env`。
 
 ## 測試
 
@@ -194,10 +266,165 @@ python3 -m unittest discover -s tests -v
 - pipeline 離線流程
 - 單一 symbol 失敗時的容錯
 - CLI 覆蓋參數
+- 歷史回填 chunk 與離線回填
+- `FinMind` symbol mapping 與股票池過濾
+
+## 歷史回填
+
+建議順序：
+
+1. 先備份 SQLite
+2. 先用單一 symbol + 小日期區間 + `--dry-run`
+3. 驗證 chunk 與預計筆數合理後，再正式寫入
+4. 先補 `daily_prices` / `technical_indicators`，不要混入 `signals` 與新聞社群
+
+建議命令：
+
+```bash
+bash scripts/backup_sqlite.sh
+python3 scripts/backfill_history.py \
+  --config config/config_tw.yaml \
+  --start-date 2025-01-01 \
+  --end-date 2025-03-31 \
+  --symbols 2330.TW \
+  --chunk-size-days 30 \
+  --dry-run
+```
+
+正式回填：
+
+```bash
+python3 scripts/backfill_history.py \
+  --config config/config_tw.yaml \
+  --start-date 2025-01-01 \
+  --end-date 2025-03-31 \
+  --symbols 2330.TW \
+  --chunk-size-days 30
+```
+
+若要為回測準備歷史選股結果，再跑：
+
+```bash
+python3 scripts/backfill_signals.py \
+  --config config/config_tw.yaml \
+  --start-date 2025-01-01 \
+  --end-date 2025-03-31
+```
+
+注意：
+
+- 這個歷史 `signals` 回填版本只使用當日以前可得的價格、指標、基本面
+- 不納入新聞與社群熱度，避免未來資訊洩漏
+- 因此它是較適合回測的基礎版訊號，不是完整即時版訊號
+
+若你要安全分批補「完整市場歷史資料」，可直接用：
+
+```bash
+python3 scripts/backfill_tw_market_batches.py \
+  --config config/config_tw.yaml \
+  --start-date 2024-01-01 \
+  --end-date 2026-05-04 \
+  --batch-size 25 \
+  --company-limit -1 \
+  --etf-limit -1 \
+  --include-signals
+```
+
+建議實務分段：
+
+1. 先 `--company-limit 50 --etf-limit 20`
+2. 確認 DB、checkpoint、signals 正常
+3. 再改成 `-1/-1` 補完整市場
+
+建議在回填完近期資料後，建立追蹤名單 snapshot：
+
+```bash
+python3 scripts/build_tw_watchlist.py \
+  --config config/config_tw.yaml \
+  --companies 50 \
+  --etfs 20 \
+  --lookback-days 20
+```
+
+目前 `config/config_tw.yaml` 已改成：
+
+- `stocks` metadata 保留全市場資料於資料庫
+- pipeline 實際追蹤 universe 優先使用 DB 內最新 `watchlist_snapshots`
+- 若尚未建立 snapshot，才退回手動 `symbols`
+
+## 建議頻率
+
+建議每日跑 1 次就夠：
+
+- 時間：台北時間 `15:50`
+- 原因：
+  - 收盤資料通常已穩定
+  - 可同一次完成近期補資料、重建 watchlist、輸出報告
+  - 不需要盤中頻繁重跑
+
+若你要更保守：
+
+- 每日 `15:50` 跑一次主流程
+- 每週一再額外手動跑一次較長區間 backfill，補漏資料
+
+## 自動化流程
+
+`scripts/run_tw_automation.sh` 預設會做：
+
+1. 若 SQLite 存在，先備份
+2. 同步全市場台股 metadata 到 `stocks`
+3. 回填最近 `45` 天價格與技術指標
+4. 依 DB 建立最新「前 50 大個股 + 前 20 大 ETF」watchlist
+5. 產生每日報告
+
+可用環境變數調整：
+
+- `BACKFILL_DAYS`
+- `WATCHLIST_LOOKBACK_DAYS`
+- `WATCHLIST_COMPANIES`
+- `WATCHLIST_ETFS`
+- `REPORT_TOP_N`
+- `NO_TELEGRAM=1`
+
+例如：
+
+```bash
+NO_TELEGRAM=1 BACKFILL_DAYS=60 bash scripts/run_tw_automation.sh
+```
+
+## systemd
+
+可用 user-level `systemd`，不需要 root：
+
+```bash
+bash scripts/install_tw_systemd_user.sh
+systemctl --user list-timers stock-agent-tw-daily.timer
+```
+
+預設排程：
+
+```text
+Mon..Fri 15:50
+```
+
+如要改時間，可在安裝前指定：
+
+```bash
+ON_CALENDAR='Mon..Fri 16:10' bash scripts/install_tw_systemd_user.sh
+```
+
+回填腳本特性：
+
+- 每個 chunk 會寫入 `backfill_checkpoints`
+- 已完成 chunk 預設會自動跳過
+- `--no-resume` 可強制重跑所有 chunk
+- `--dry-run` 只驗證與計數，不寫 `daily_prices` / `technical_indicators`
+- `dry-run` checkpoint 會標記為 `dry_run`，不會被當成正式成功 chunk 跳過
 
 ## 已知限制
 
 - 台股真實資料目前尚未接 FinMind / TWSE，仍以 `yfinance` 或內建樣本為主
+- 台股價格來源已可切到 `FinMind`，失敗時會退回 `yfinance`
 - 基本面、新聞、社群資料目前多數是內建樣本
 - AI 摘要目前是規則式文字，不是外部 LLM
 - 還沒有排程器與自動告警整合
@@ -210,3 +437,27 @@ python3 -m unittest discover -s tests -v
 - 補上每日排程與失敗通知
 - 擴充新聞與社群來源
 - 將報告改成更細的 ranking 與事件區塊
+
+## FinMind 整合
+
+目前台股設定檔預設：
+
+```yaml
+data_sources:
+  price: finmind
+  fundamentals: finmind
+```
+
+實作狀態：
+
+- `price: finmind`
+  - TW 市場會優先打 `FinMind` `TaiwanStockPrice`
+  - 失敗時退回 `yfinance`
+- `fundamentals: finmind`
+  - 目前先使用 `FinMind` `TaiwanStockPER` 補 `dividend_yield`
+  - 其他欄位仍與內建樣本併用
+
+官方參考：
+
+- FinMind `TaiwanStockPrice` 文件：<https://finmind.github.io/tutor/TaiwanMarket/Technical/>
+- FinMind quick start：<https://finmind.github.io/quickstart/>

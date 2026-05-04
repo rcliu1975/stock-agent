@@ -128,6 +128,34 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
     error_summary TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS backfill_checkpoints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    market TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    chunk_start TEXT NOT NULL,
+    chunk_end TEXT NOT NULL,
+    status TEXT NOT NULL,
+    rows_written INTEGER NOT NULL DEFAULT 0,
+    last_trade_date TEXT,
+    error_message TEXT,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(market, symbol, chunk_start, chunk_end)
+);
+
+CREATE TABLE IF NOT EXISTS watchlist_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    market TEXT NOT NULL,
+    strategy TEXT NOT NULL,
+    snapshot_date TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    category TEXT NOT NULL,
+    rank_order INTEGER NOT NULL,
+    metric_name TEXT NOT NULL,
+    metric_value REAL NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(market, strategy, snapshot_date, symbol)
+);
 """
 
 
@@ -145,18 +173,27 @@ def initialize(connection: sqlite3.Connection) -> None:
 
 
 def upsert_stock(connection: sqlite3.Connection, stock: dict) -> None:
+    payload = {
+        "symbol": stock["symbol"],
+        "name": stock["name"],
+        "market": stock["market"],
+        "exchange": stock["exchange"],
+        "industry": stock["industry"],
+        "currency": stock["currency"],
+        "is_active": stock.get("is_active", 1),
+    }
     connection.execute(
         """
-        INSERT INTO stocks(symbol, name, market, exchange, industry, currency)
-        VALUES (:symbol, :name, :market, :exchange, :industry, :currency)
+        INSERT INTO stocks(symbol, name, market, exchange, industry, currency, is_active)
+        VALUES (:symbol, :name, :market, :exchange, :industry, :currency, :is_active)
         ON CONFLICT(symbol, market) DO UPDATE SET
             name=excluded.name,
             exchange=excluded.exchange,
             industry=excluded.industry,
             currency=excluded.currency,
-            is_active=1
+            is_active=excluded.is_active
         """,
-        stock,
+        payload,
     )
 
 
@@ -285,4 +322,195 @@ def insert_pipeline_run(connection: sqlite3.Connection, row: dict) -> None:
         )
         """,
         row,
+    )
+
+
+def upsert_backfill_checkpoint(connection: sqlite3.Connection, row: dict) -> None:
+    connection.execute(
+        """
+        INSERT INTO backfill_checkpoints(
+            market, symbol, chunk_start, chunk_end, status, rows_written, last_trade_date, error_message, updated_at
+        )
+        VALUES (
+            :market, :symbol, :chunk_start, :chunk_end, :status, :rows_written, :last_trade_date, :error_message, CURRENT_TIMESTAMP
+        )
+        ON CONFLICT(market, symbol, chunk_start, chunk_end) DO UPDATE SET
+            status=excluded.status,
+            rows_written=excluded.rows_written,
+            last_trade_date=excluded.last_trade_date,
+            error_message=excluded.error_message,
+            updated_at=CURRENT_TIMESTAMP
+        """,
+        row,
+    )
+
+
+def fetch_backfill_checkpoint(
+    connection: sqlite3.Connection,
+    market: str,
+    symbol: str,
+    chunk_start: str,
+    chunk_end: str,
+) -> sqlite3.Row | None:
+    cursor = connection.execute(
+        """
+        SELECT *
+        FROM backfill_checkpoints
+        WHERE market = ? AND symbol = ? AND chunk_start = ? AND chunk_end = ?
+        """,
+        (market, symbol, chunk_start, chunk_end),
+    )
+    return cursor.fetchone()
+
+
+def replace_watchlist_snapshot(
+    connection: sqlite3.Connection,
+    market: str,
+    strategy: str,
+    snapshot_date: str,
+    rows: Iterable[dict],
+) -> None:
+    connection.execute(
+        """
+        DELETE FROM watchlist_snapshots
+        WHERE market = ? AND strategy = ? AND snapshot_date = ?
+        """,
+        (market, strategy, snapshot_date),
+    )
+    connection.executemany(
+        """
+        INSERT INTO watchlist_snapshots(
+            market, strategy, snapshot_date, symbol, category, rank_order, metric_name, metric_value
+        )
+        VALUES (
+            :market, :strategy, :snapshot_date, :symbol, :category, :rank_order, :metric_name, :metric_value
+        )
+        """,
+        rows,
+    )
+
+
+def fetch_latest_watchlist_symbols(
+    connection: sqlite3.Connection,
+    market: str,
+    strategy: str,
+) -> list[str]:
+    cursor = connection.execute(
+        """
+        SELECT symbol
+        FROM watchlist_snapshots
+        WHERE market = ? AND strategy = (
+            SELECT strategy
+            FROM watchlist_snapshots
+            WHERE market = ? AND strategy = ?
+            ORDER BY snapshot_date DESC
+            LIMIT 1
+        )
+        AND snapshot_date = (
+            SELECT snapshot_date
+            FROM watchlist_snapshots
+            WHERE market = ? AND strategy = ?
+            ORDER BY snapshot_date DESC
+            LIMIT 1
+        )
+        ORDER BY category, rank_order
+        """,
+        (market, market, strategy, market, strategy),
+    )
+    return [str(row[0]) for row in cursor.fetchall()]
+
+
+def fetch_price_rows(
+    connection: sqlite3.Connection,
+    market: str,
+    symbol: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[sqlite3.Row]:
+    query = """
+    SELECT symbol, market, trade_date, open, high, low, close, volume, turnover
+    FROM daily_prices
+    WHERE market = ? AND symbol = ?
+    """
+    params: list[object] = [market, symbol]
+    if start_date:
+        query += " AND trade_date >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND trade_date <= ?"
+        params.append(end_date)
+    query += " ORDER BY trade_date"
+    return list(connection.execute(query, params))
+
+
+def fetch_indicator_rows(
+    connection: sqlite3.Connection,
+    market: str,
+    symbol: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[sqlite3.Row]:
+    query = """
+    SELECT symbol, market, trade_date, ma5, ma20, ma60, ma120, rsi14, volume_ma5, volume_ma20, high_20d, low_20d, high_52w, low_52w
+    FROM technical_indicators
+    WHERE market = ? AND symbol = ?
+    """
+    params: list[object] = [market, symbol]
+    if start_date:
+        query += " AND trade_date >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND trade_date <= ?"
+        params.append(end_date)
+    query += " ORDER BY trade_date"
+    return list(connection.execute(query, params))
+
+
+def fetch_fundamentals_for_symbol(connection: sqlite3.Connection, market: str, symbol: str) -> list[sqlite3.Row]:
+    return list(
+        connection.execute(
+            """
+            SELECT symbol, market, period, eps, revenue_yoy, roe, gross_margin, debt_ratio, free_cash_flow, dividend_yield
+            FROM fundamentals
+            WHERE market = ? AND symbol = ?
+            ORDER BY period
+            """,
+            (market, symbol),
+        )
+    )
+
+
+def fetch_stocks(connection: sqlite3.Connection, market: str) -> list[sqlite3.Row]:
+    return list(
+        connection.execute(
+            """
+            SELECT symbol, name, market, exchange, industry, currency, is_active
+            FROM stocks
+            WHERE market = ? AND is_active = 1
+            ORDER BY symbol
+            """,
+            (market,),
+        )
+    )
+
+
+def deactivate_market_stocks(connection: sqlite3.Connection, market: str) -> None:
+    connection.execute(
+        """
+        UPDATE stocks
+        SET is_active = 0
+        WHERE market = ?
+        """,
+        (market,),
+    )
+
+
+def activate_market_symbols(connection: sqlite3.Connection, market: str, symbols: Iterable[str]) -> None:
+    connection.executemany(
+        """
+        UPDATE stocks
+        SET is_active = 1
+        WHERE market = ? AND symbol = ?
+        """,
+        [(market, symbol) for symbol in symbols],
     )

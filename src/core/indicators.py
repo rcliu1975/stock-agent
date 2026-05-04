@@ -47,3 +47,9 @@ def latest_indicator_row(symbol: str, market: str, prices: list[dict]) -> dict:
         "low_52w": round(min(closes[-252:]), 4) if len(closes) >= 252 else round(min(closes), 4),
     }
 
+
+def generate_indicator_rows(symbol: str, market: str, prices: list[dict]) -> list[dict]:
+    rows: list[dict] = []
+    for end_index in range(1, len(prices) + 1):
+        rows.append(latest_indicator_row(symbol, market, prices[:end_index]))
+    return rows

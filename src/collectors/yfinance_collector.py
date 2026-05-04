@@ -1,26 +1,41 @@
 from __future__ import annotations
 
-from typing import Any
+from datetime import date, datetime, timedelta
 
 from src.collectors.sample_data import build_price_rows
 
 
-def fetch_price_history(symbol: str, market: str, offline: bool = False) -> list[dict]:
+def fetch_price_history(
+    symbol: str,
+    market: str,
+    offline: bool = False,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict]:
     if offline:
-        return _fallback(symbol, market)
+        return _filter_rows(_fallback(symbol, market), start_date=start_date, end_date=end_date)
     try:
         import yfinance as yf
     except ImportError:
-        return _fallback(symbol, market)
+        return _filter_rows(_fallback(symbol, market), start_date=start_date, end_date=end_date)
 
     try:
         ticker = yf.Ticker(symbol)
-        history = ticker.history(period="6mo", interval="1d", auto_adjust=False)
+        history_kwargs = {"interval": "1d", "auto_adjust": False}
+        if start_date or end_date:
+            if start_date:
+                history_kwargs["start"] = start_date
+            if end_date:
+                end_dt = date.fromisoformat(end_date) + timedelta(days=1)
+                history_kwargs["end"] = end_dt.isoformat()
+        else:
+            history_kwargs["period"] = "6mo"
+        history = ticker.history(**history_kwargs)
     except Exception:
-        return _fallback(symbol, market)
+        return _filter_rows(_fallback(symbol, market), start_date=start_date, end_date=end_date)
 
     if history.empty:
-        return _fallback(symbol, market)
+        return _filter_rows(_fallback(symbol, market), start_date=start_date, end_date=end_date)
 
     rows: list[dict] = []
     for trade_date, row in history.iterrows():
@@ -42,7 +57,7 @@ def fetch_price_history(symbol: str, market: str, offline: bool = False) -> list
                 "turnover": round(close * volume, 2),
             }
         )
-    return rows or _fallback(symbol, market)
+    return rows or _filter_rows(_fallback(symbol, market), start_date=start_date, end_date=end_date)
 
 
 def _fallback(symbol: str, market: str) -> list[dict]:
@@ -51,4 +66,20 @@ def _fallback(symbol: str, market: str) -> list[dict]:
     slope = 0.25 + (seed % 7) * 0.03
     base_volume = 120000 + (seed % 10) * 18000
     return build_price_rows(symbol, market, start_price=float(start_price), slope=slope, base_volume=base_volume)
+
+
+def _filter_rows(rows: list[dict], start_date: str | None, end_date: str | None) -> list[dict]:
+    if not start_date and not end_date:
+        return rows
+    start_bound = date.fromisoformat(start_date) if start_date else None
+    end_bound = date.fromisoformat(end_date) if end_date else None
+    filtered: list[dict] = []
+    for row in rows:
+        trade_date = date.fromisoformat(row["trade_date"])
+        if start_bound and trade_date < start_bound:
+            continue
+        if end_bound and trade_date > end_bound:
+            continue
+        filtered.append(row)
+    return filtered
 
