@@ -7,6 +7,7 @@ import logging
 from src.collectors.provider import fetch_price_history
 from src.core import database
 from src.core.indicators import generate_indicator_rows
+from src.core.universe import resolve_symbols
 
 
 @dataclass(slots=True)
@@ -67,6 +68,8 @@ def backfill_history(
     dry_run: bool = False,
 ) -> list[ChunkResult]:
     results: list[ChunkResult] = []
+    if not symbols:
+        symbols = resolve_symbols(config, connection)
     for symbol in symbols:
         stock = {
             "symbol": symbol,

@@ -132,6 +132,16 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - 用途：從 `FinMind` `TaiwanStockInfo` 同步台股股票池與基本 metadata 到 SQLite
 - 用法：`python3 scripts/sync_tw_universe.py --config config/config_tw.yaml --exchanges twse,tpex --exclude-industries ETF,上櫃ETF,ETN --stock-id-pattern '^\\d{4}$'`
 
+`scripts/build_tw_watchlist.py`
+
+- 用途：從 DB 的 `daily_prices` 建立「前 50 大個股 + 前 20 大 ETF」追蹤名單 snapshot
+- 用法：`python3 scripts/build_tw_watchlist.py --config config/config_tw.yaml --companies 50 --etfs 20 --lookback-days 20`
+
+`scripts/show_watchlist.py`
+
+- 用途：查看最新 watchlist snapshot
+- 用法：`python3 scripts/show_watchlist.py --db data/stock_agent.sqlite --market TW --strategy tw_top_companies_etfs`
+
 ## 設定檔說明
 
 主要欄位如下：
@@ -256,6 +266,22 @@ python3 scripts/backfill_history.py \
   --symbols 2330.TW \
   --chunk-size-days 30
 ```
+
+建議在回填完近期資料後，建立追蹤名單 snapshot：
+
+```bash
+python3 scripts/build_tw_watchlist.py \
+  --config config/config_tw.yaml \
+  --companies 50 \
+  --etfs 20 \
+  --lookback-days 20
+```
+
+目前 `config/config_tw.yaml` 已改成：
+
+- `stocks` metadata 保留全市場資料於資料庫
+- pipeline 實際追蹤 universe 優先使用 DB 內最新 `watchlist_snapshots`
+- 若尚未建立 snapshot，才退回手動 `symbols`
 
 回填腳本特性：
 

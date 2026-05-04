@@ -142,6 +142,20 @@ CREATE TABLE IF NOT EXISTS backfill_checkpoints (
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(market, symbol, chunk_start, chunk_end)
 );
+
+CREATE TABLE IF NOT EXISTS watchlist_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    market TEXT NOT NULL,
+    strategy TEXT NOT NULL,
+    snapshot_date TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    category TEXT NOT NULL,
+    rank_order INTEGER NOT NULL,
+    metric_name TEXT NOT NULL,
+    metric_value REAL NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(market, strategy, snapshot_date, symbol)
+);
 """
 
 
@@ -338,3 +352,60 @@ def fetch_backfill_checkpoint(
         (market, symbol, chunk_start, chunk_end),
     )
     return cursor.fetchone()
+
+
+def replace_watchlist_snapshot(
+    connection: sqlite3.Connection,
+    market: str,
+    strategy: str,
+    snapshot_date: str,
+    rows: Iterable[dict],
+) -> None:
+    connection.execute(
+        """
+        DELETE FROM watchlist_snapshots
+        WHERE market = ? AND strategy = ? AND snapshot_date = ?
+        """,
+        (market, strategy, snapshot_date),
+    )
+    connection.executemany(
+        """
+        INSERT INTO watchlist_snapshots(
+            market, strategy, snapshot_date, symbol, category, rank_order, metric_name, metric_value
+        )
+        VALUES (
+            :market, :strategy, :snapshot_date, :symbol, :category, :rank_order, :metric_name, :metric_value
+        )
+        """,
+        rows,
+    )
+
+
+def fetch_latest_watchlist_symbols(
+    connection: sqlite3.Connection,
+    market: str,
+    strategy: str,
+) -> list[str]:
+    cursor = connection.execute(
+        """
+        SELECT symbol
+        FROM watchlist_snapshots
+        WHERE market = ? AND strategy = (
+            SELECT strategy
+            FROM watchlist_snapshots
+            WHERE market = ? AND strategy = ?
+            ORDER BY snapshot_date DESC
+            LIMIT 1
+        )
+        AND snapshot_date = (
+            SELECT snapshot_date
+            FROM watchlist_snapshots
+            WHERE market = ? AND strategy = ?
+            ORDER BY snapshot_date DESC
+            LIMIT 1
+        )
+        ORDER BY category, rank_order
+        """,
+        (market, market, strategy, market, strategy),
+    )
+    return [str(row[0]) for row in cursor.fetchall()]

@@ -13,6 +13,7 @@ from src.core import database
 from src.core.indicators import latest_indicator_row
 from src.core.report import render_report, write_report
 from src.core.scoring import score_stock
+from src.core.universe import resolve_symbols
 from src.notify.telegram import send_message
 
 
@@ -37,8 +38,9 @@ def run_pipeline(
     database.initialize(connection)
     ranked_rows: list[dict] = []
     failures: list[str] = []
+    symbols = resolve_symbols(config, connection)
 
-    for symbol in config["universe"]["symbols"]:
+    for symbol in symbols:
         try:
             stock = fetch_stock_profile(config, symbol, config["market"], config["currency"])
             database.upsert_stock(connection, stock)
@@ -98,7 +100,7 @@ def run_pipeline(
             "market": config["market"],
             "run_date": run_date,
             "status": "success" if not failures else ("partial" if ranked_rows else "failed"),
-            "processed_count": len(config["universe"]["symbols"]),
+            "processed_count": len(symbols),
             "success_count": len(ranked_rows),
             "failed_count": len(failures),
             "report_path": str(report_path),
