@@ -173,18 +173,27 @@ def initialize(connection: sqlite3.Connection) -> None:
 
 
 def upsert_stock(connection: sqlite3.Connection, stock: dict) -> None:
+    payload = {
+        "symbol": stock["symbol"],
+        "name": stock["name"],
+        "market": stock["market"],
+        "exchange": stock["exchange"],
+        "industry": stock["industry"],
+        "currency": stock["currency"],
+        "is_active": stock.get("is_active", 1),
+    }
     connection.execute(
         """
-        INSERT INTO stocks(symbol, name, market, exchange, industry, currency)
-        VALUES (:symbol, :name, :market, :exchange, :industry, :currency)
+        INSERT INTO stocks(symbol, name, market, exchange, industry, currency, is_active)
+        VALUES (:symbol, :name, :market, :exchange, :industry, :currency, :is_active)
         ON CONFLICT(symbol, market) DO UPDATE SET
             name=excluded.name,
             exchange=excluded.exchange,
             industry=excluded.industry,
             currency=excluded.currency,
-            is_active=1
+            is_active=excluded.is_active
         """,
-        stock,
+        payload,
     )
 
 
@@ -493,4 +502,15 @@ def deactivate_market_stocks(connection: sqlite3.Connection, market: str) -> Non
         WHERE market = ?
         """,
         (market,),
+    )
+
+
+def activate_market_symbols(connection: sqlite3.Connection, market: str, symbols: Iterable[str]) -> None:
+    connection.executemany(
+        """
+        UPDATE stocks
+        SET is_active = 1
+        WHERE market = ? AND symbol = ?
+        """,
+        [(market, symbol) for symbol in symbols],
     )

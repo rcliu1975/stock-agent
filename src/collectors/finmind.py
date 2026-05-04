@@ -170,6 +170,56 @@ def fetch_tw_stock_universe(
     return rows
 
 
+def fetch_tw_all_stock_universe(
+    include_exchanges: tuple[str, ...] = ("twse", "tpex"),
+    stock_id_pattern: str = r"^\d+[A-Z]?$",
+) -> list[dict]:
+    allowed = {item.lower() for item in include_exchanges}
+    stock_id_regex = re.compile(stock_id_pattern) if stock_id_pattern else None
+    rows: list[dict] = []
+    for stock_id, info in _get_tw_stock_info().items():
+        exchange = str(info.get("type", "")).lower()
+        if allowed and exchange not in allowed:
+            continue
+        if stock_id_regex and not stock_id_regex.match(stock_id):
+            continue
+        rows.append(
+            {
+                "symbol": f"{stock_id}.TW" if exchange == "twse" else f"{stock_id}.TWO",
+                "name": info.get("stock_name") or stock_id,
+                "market": "TW",
+                "exchange": exchange or "TW",
+                "industry": str(info.get("industry_category", "")),
+                "currency": "TWD",
+            }
+        )
+    rows.sort(key=lambda item: item["symbol"])
+    return rows
+
+
+def select_tw_tracking_symbols(
+    rows: list[dict],
+    company_stock_id_pattern: str = r"^\d{4}$",
+    exclude_industry_keywords: tuple[str, ...] = ("ETN",),
+) -> list[str]:
+    company_regex = re.compile(company_stock_id_pattern) if company_stock_id_pattern else None
+    excluded_keywords = tuple(keyword.lower() for keyword in exclude_industry_keywords)
+    symbols: list[str] = []
+    for row in rows:
+        symbol = row["symbol"]
+        stock_id = normalize_tw_symbol(symbol)
+        industry = str(row.get("industry", ""))
+        lowered_industry = industry.lower()
+        if excluded_keywords and any(keyword in lowered_industry for keyword in excluded_keywords):
+            continue
+        if "etf" in lowered_industry:
+            symbols.append(symbol)
+            continue
+        if company_regex and company_regex.match(stock_id):
+            symbols.append(symbol)
+    return symbols
+
+
 def normalize_tw_symbol(symbol: str) -> str:
     if symbol.endswith(".TW") or symbol.endswith(".TWO"):
         return symbol.split(".", 1)[0]
