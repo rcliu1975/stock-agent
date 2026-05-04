@@ -26,6 +26,7 @@ class BackfillTests(unittest.TestCase):
             initialize(connection)
             results = backfill_history(
                 connection=connection,
+                config={"data_sources": {"price": "yfinance"}},
                 market="TW",
                 currency="TWD",
                 symbols=["2330.TW"],
@@ -52,6 +53,7 @@ class BackfillTests(unittest.TestCase):
             initialize(connection)
             results = backfill_history(
                 connection=connection,
+                config={"data_sources": {"price": "yfinance"}},
                 market="TW",
                 currency="TWD",
                 symbols=["2330.TW"],

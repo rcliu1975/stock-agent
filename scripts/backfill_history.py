@@ -40,6 +40,7 @@ def main() -> int:
     initialize(connection)
     results = backfill_history(
         connection=connection,
+        config=config,
         market=config["market"],
         currency=config["currency"],
         symbols=config["universe"]["symbols"],

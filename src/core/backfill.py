@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 import logging
 
-from src.collectors.yfinance_collector import fetch_price_history
+from src.collectors.provider import fetch_price_history
 from src.core import database
 from src.core.indicators import generate_indicator_rows
 
@@ -55,6 +55,7 @@ def validate_price_rows(rows: list[dict]) -> None:
 
 def backfill_history(
     connection,
+    config: dict,
     market: str,
     currency: str,
     symbols: list[str],
@@ -108,6 +109,7 @@ def backfill_history(
 
             try:
                 prices = fetch_price_history(
+                    config,
                     symbol,
                     market,
                     offline=offline,
@@ -122,6 +124,7 @@ def backfill_history(
                     database.upsert_price_rows(connection, prices)
                     history_start = date.fromisoformat(chunk_start) - timedelta(days=251)
                     full_prices = fetch_price_history(
+                        config,
                         symbol,
                         market,
                         offline=offline,

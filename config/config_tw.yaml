@@ -13,8 +13,8 @@ universe:
     - 2382.TW
 
 data_sources:
-  price: yfinance
-  fundamentals: builtin
+  price: finmind
+  fundamentals: finmind
   news: builtin
   social: builtin
 

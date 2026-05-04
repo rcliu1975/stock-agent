@@ -6,10 +6,9 @@ import logging
 from pathlib import Path
 
 from src.ai.event_summary import summarize_event
-from src.collectors.finmind import fetch_fundamental
 from src.collectors.news import fetch_news
+from src.collectors.provider import fetch_fundamental, fetch_price_history, fetch_stock_profile
 from src.collectors.social import fetch_social
-from src.collectors.yfinance_collector import fetch_price_history
 from src.core import database
 from src.core.indicators import latest_indicator_row
 from src.core.report import render_report, write_report
@@ -41,23 +40,16 @@ def run_pipeline(
 
     for symbol in config["universe"]["symbols"]:
         try:
-            stock = {
-                "symbol": symbol,
-                "name": symbol,
-                "market": config["market"],
-                "exchange": config["market"],
-                "industry": "",
-                "currency": config["currency"],
-            }
+            stock = fetch_stock_profile(config, symbol, config["market"], config["currency"])
             database.upsert_stock(connection, stock)
-            prices = fetch_price_history(symbol, config["market"], offline=offline)
+            prices = fetch_price_history(config, symbol, config["market"], offline=offline)
             if not prices:
                 raise ValueError("empty price history")
             database.upsert_price_rows(connection, prices)
             indicator = latest_indicator_row(symbol, config["market"], prices)
             database.upsert_indicator(connection, indicator)
 
-            fundamental = fetch_fundamental(symbol, config["market"])
+            fundamental = fetch_fundamental(config, symbol, config["market"])
             database.upsert_fundamental(connection, fundamental)
 
             news_items = fetch_news(symbol, config["market"])

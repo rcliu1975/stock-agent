@@ -262,6 +262,7 @@ python3 scripts/backfill_history.py \
 ## 已知限制
 
 - 台股真實資料目前尚未接 FinMind / TWSE，仍以 `yfinance` 或內建樣本為主
+- 台股價格來源已可切到 `FinMind`，失敗時會退回 `yfinance`
 - 基本面、新聞、社群資料目前多數是內建樣本
 - AI 摘要目前是規則式文字，不是外部 LLM
 - 還沒有排程器與自動告警整合
@@ -274,3 +275,27 @@ python3 scripts/backfill_history.py \
 - 補上每日排程與失敗通知
 - 擴充新聞與社群來源
 - 將報告改成更細的 ranking 與事件區塊
+
+## FinMind 整合
+
+目前台股設定檔預設：
+
+```yaml
+data_sources:
+  price: finmind
+  fundamentals: finmind
+```
+
+實作狀態：
+
+- `price: finmind`
+  - TW 市場會優先打 `FinMind` `TaiwanStockPrice`
+  - 失敗時退回 `yfinance`
+- `fundamentals: finmind`
+  - 目前先使用 `FinMind` `TaiwanStockPER` 補 `dividend_yield`
+  - 其他欄位仍與內建樣本併用
+
+官方參考：
+
+- FinMind `TaiwanStockPrice` 文件：<https://finmind.github.io/tutor/TaiwanMarket/Technical/>
+- FinMind quick start：<https://finmind.github.io/quickstart/>
