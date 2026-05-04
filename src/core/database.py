@@ -469,3 +469,28 @@ def fetch_fundamentals_for_symbol(connection: sqlite3.Connection, market: str, s
             (market, symbol),
         )
     )
+
+
+def fetch_stocks(connection: sqlite3.Connection, market: str) -> list[sqlite3.Row]:
+    return list(
+        connection.execute(
+            """
+            SELECT symbol, name, market, exchange, industry, currency, is_active
+            FROM stocks
+            WHERE market = ? AND is_active = 1
+            ORDER BY symbol
+            """,
+            (market,),
+        )
+    )
+
+
+def deactivate_market_stocks(connection: sqlite3.Connection, market: str) -> None:
+    connection.execute(
+        """
+        UPDATE stocks
+        SET is_active = 0
+        WHERE market = ?
+        """,
+        (market,),
+    )

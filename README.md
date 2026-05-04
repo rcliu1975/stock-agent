@@ -132,6 +132,11 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - 用途：用既有 `daily_prices`、`technical_indicators`、`fundamentals` 回填歷史 `signals`
 - 用法：`python3 scripts/backfill_signals.py --config config/config_tw.yaml --start-date 2025-01-01 --end-date 2025-03-31 --symbols 2330.TW`
 
+`scripts/backfill_tw_market_batches.py`
+
+- 用途：依 `stocks` 資料表分批回填台股市場資料，可選擇是否同時回填歷史 `signals`
+- 用法：`python3 scripts/backfill_tw_market_batches.py --config config/config_tw.yaml --start-date 2025-01-01 --end-date 2025-12-31 --batch-size 25 --company-limit 0 --etf-limit 0 --include-signals`
+
 `scripts/sync_tw_universe.py`
 
 - 用途：從 `FinMind` `TaiwanStockInfo` 同步台股股票池與基本 metadata 到 SQLite
@@ -296,6 +301,25 @@ python3 scripts/backfill_signals.py \
 - 這個歷史 `signals` 回填版本只使用當日以前可得的價格、指標、基本面
 - 不納入新聞與社群熱度，避免未來資訊洩漏
 - 因此它是較適合回測的基礎版訊號，不是完整即時版訊號
+
+若你要安全分批補「完整市場歷史資料」，可直接用：
+
+```bash
+python3 scripts/backfill_tw_market_batches.py \
+  --config config/config_tw.yaml \
+  --start-date 2024-01-01 \
+  --end-date 2026-05-04 \
+  --batch-size 25 \
+  --company-limit -1 \
+  --etf-limit -1 \
+  --include-signals
+```
+
+建議實務分段：
+
+1. 先 `--company-limit 50 --etf-limit 20`
+2. 確認 DB、checkpoint、signals 正常
+3. 再改成 `-1/-1` 補完整市場
 
 建議在回填完近期資料後，建立追蹤名單 snapshot：
 

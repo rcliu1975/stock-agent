@@ -11,7 +11,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.collectors.finmind import fetch_tw_stock_universe
 from src.core.config import load_config
-from src.core.database import connect, initialize, upsert_stock
+from src.core.database import connect, deactivate_market_stocks, initialize, upsert_stock
 from src.core.env import load_dotenv
 from src.core.logging_utils import setup_logging
 
@@ -22,6 +22,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--exchanges", default="twse,tpex", help="Comma-separated exchanges, e.g. twse,tpex")
     parser.add_argument("--exclude-industries", default="ETF,上櫃ETF,ETN", help="Comma-separated industry keywords to exclude")
     parser.add_argument("--stock-id-pattern", default="^\\d{4}$", help="Regex for allowed stock_id values")
+    parser.add_argument("--keep-others-active", action="store_true", help="Do not deactivate old active stocks not selected in this sync")
     parser.add_argument("--limit", type=int, default=None, help="Optional max number of rows to import")
     return parser.parse_args()
 
@@ -44,6 +45,9 @@ def main() -> int:
     if args.limit is not None and args.limit > 0:
         rows = rows[: args.limit]
 
+    if not args.keep_others_active:
+        deactivate_market_stocks(connection, config["market"])
+
     for row in rows:
         upsert_stock(connection, row)
     connection.commit()
@@ -53,6 +57,7 @@ def main() -> int:
     print(f"Exchanges: {','.join(exchanges)}")
     print(f"Excluded industries: {','.join(exclude_industries)}")
     print(f"Stock ID pattern: {args.stock_id_pattern}")
+    print(f"Deactivate others: {'no' if args.keep_others_active else 'yes'}")
     if rows:
         print(f"First symbol: {rows[0]['symbol']}")
         print(f"Last symbol: {rows[-1]['symbol']}")

@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from src.collectors.finmind import fetch_tw_stock_universe
-from src.core.database import connect, initialize, upsert_stock
+from src.core.database import connect, deactivate_market_stocks, fetch_stocks, initialize, upsert_stock
 
 
 class UniverseTests(unittest.TestCase):
@@ -34,6 +34,22 @@ class UniverseTests(unittest.TestCase):
             connection.commit()
             count = connection.execute("SELECT COUNT(*) FROM stocks").fetchone()[0]
             self.assertEqual(count, 2)
+            connection.close()
+
+    def test_deactivate_market_stocks_keeps_rows_but_marks_inactive(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "stock_agent.sqlite"
+            connection = connect(db_path)
+            initialize(connection)
+            upsert_stock(connection, {"symbol": "2330.TW", "name": "台積電", "market": "TW", "exchange": "twse", "industry": "電子工業", "currency": "TWD"})
+            upsert_stock(connection, {"symbol": "0050.TW", "name": "元大台灣50", "market": "TW", "exchange": "twse", "industry": "ETF", "currency": "TWD"})
+            connection.commit()
+            deactivate_market_stocks(connection, "TW")
+            connection.commit()
+            active_rows = fetch_stocks(connection, "TW")
+            total_rows = connection.execute("SELECT COUNT(*) FROM stocks WHERE market='TW'").fetchone()[0]
+            self.assertEqual(total_rows, 2)
+            self.assertEqual(len(active_rows), 0)
             connection.close()
 
 
