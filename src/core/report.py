@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 
 
@@ -39,10 +38,10 @@ def render_report(config: dict, run_date: str, ranked_rows: list[dict], failures
     return "\n".join(lines).strip() + "\n"
 
 
-def write_report(output_dir: str, market: str, run_date: str, content: str) -> Path:
+def write_report(output_dir: str, market: str, run_label: str, content: str) -> Path:
     folder = Path(output_dir)
     folder.mkdir(parents=True, exist_ok=True)
-    filename = f"{run_date}_{market.lower()}_report.md"
+    filename = f"{run_label}_{market.lower()}_report.md"
     path = folder / filename
     path.write_text(content, encoding="utf-8")
     return path

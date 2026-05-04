@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import datetime, date
 import logging
 from pathlib import Path
 
@@ -33,6 +33,7 @@ def run_pipeline(
     log_path: Path | None = None,
 ) -> PipelineResult:
     run_date = date.today().isoformat()
+    run_label = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     connection = database.connect(config["database_path"])
     database.initialize(connection)
     ranked_rows: list[dict] = []
@@ -94,7 +95,7 @@ def run_pipeline(
     top_n = config["report"].get("top_n", len(ranked_rows))
     ranked_rows = ranked_rows[:top_n]
     report_content = render_report(config, run_date, ranked_rows, failures=failures)
-    report_path = write_report(config["report"]["output_dir"], config["market"], run_date, report_content)
+    report_path = write_report(config["report"]["output_dir"], config["market"], run_label, report_content)
     telegram_sent = False
     if config["report"].get("telegram_enabled", False) and send_telegram_enabled:
         telegram_sent = send_message(report_content[:3500])

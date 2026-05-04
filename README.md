@@ -56,6 +56,12 @@ python3 main.py --config config/config_tw.yaml --offline
 python3 main.py --config config/config_tw.yaml --no-telegram
 ```
 
+臨時覆蓋追蹤標的與報告筆數：
+
+```bash
+python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.TW --top-n 2
+```
+
 ## 腳本
 
 `scripts/run_tw_daily.sh`
