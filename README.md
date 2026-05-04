@@ -142,6 +142,16 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - 用途：查看最新 watchlist snapshot
 - 用法：`python3 scripts/show_watchlist.py --db data/stock_agent.sqlite --market TW --strategy tw_top_companies_etfs`
 
+`scripts/run_tw_automation.sh`
+
+- 用途：每日自動流程，包含備份、同步台股 universe、補近期資料、重建 watchlist、產生日報
+- 用法：`bash scripts/run_tw_automation.sh`
+
+`scripts/install_tw_systemd_user.sh`
+
+- 用途：安裝 `systemd --user` 版本的台股每日排程
+- 用法：`bash scripts/install_tw_systemd_user.sh`
+
 ## 設定檔說明
 
 主要欄位如下：
@@ -282,6 +292,67 @@ python3 scripts/build_tw_watchlist.py \
 - `stocks` metadata 保留全市場資料於資料庫
 - pipeline 實際追蹤 universe 優先使用 DB 內最新 `watchlist_snapshots`
 - 若尚未建立 snapshot，才退回手動 `symbols`
+
+## 建議頻率
+
+建議每日跑 1 次就夠：
+
+- 時間：台北時間 `15:50`
+- 原因：
+  - 收盤資料通常已穩定
+  - 可同一次完成近期補資料、重建 watchlist、輸出報告
+  - 不需要盤中頻繁重跑
+
+若你要更保守：
+
+- 每日 `15:50` 跑一次主流程
+- 每週一再額外手動跑一次較長區間 backfill，補漏資料
+
+## 自動化流程
+
+`scripts/run_tw_automation.sh` 預設會做：
+
+1. 若 SQLite 存在，先備份
+2. 同步全市場台股 metadata 到 `stocks`
+3. 回填最近 `45` 天價格與技術指標
+4. 依 DB 建立最新「前 50 大個股 + 前 20 大 ETF」watchlist
+5. 產生每日報告
+
+可用環境變數調整：
+
+- `BACKFILL_DAYS`
+- `WATCHLIST_LOOKBACK_DAYS`
+- `WATCHLIST_COMPANIES`
+- `WATCHLIST_ETFS`
+- `REPORT_TOP_N`
+- `NO_TELEGRAM=1`
+
+例如：
+
+```bash
+NO_TELEGRAM=1 BACKFILL_DAYS=60 bash scripts/run_tw_automation.sh
+```
+
+## systemd
+
+可用 user-level `systemd`，不需要 root：
+
+```bash
+bash scripts/install_tw_systemd_user.sh
+systemctl --user list-timers stock-agent-tw-daily.timer
+```
+
+預設排程：
+
+```text
+Mon..Fri 15:50
+```
+
+如要改時間，可在安裝前指定：
+
+```bash
+ON_CALENDAR='Mon..Fri 16:10' bash scripts/install_tw_systemd_user.sh
+```
 
 回填腳本特性：
 
