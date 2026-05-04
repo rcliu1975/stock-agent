@@ -409,3 +409,63 @@ def fetch_latest_watchlist_symbols(
         (market, market, strategy, market, strategy),
     )
     return [str(row[0]) for row in cursor.fetchall()]
+
+
+def fetch_price_rows(
+    connection: sqlite3.Connection,
+    market: str,
+    symbol: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[sqlite3.Row]:
+    query = """
+    SELECT symbol, market, trade_date, open, high, low, close, volume, turnover
+    FROM daily_prices
+    WHERE market = ? AND symbol = ?
+    """
+    params: list[object] = [market, symbol]
+    if start_date:
+        query += " AND trade_date >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND trade_date <= ?"
+        params.append(end_date)
+    query += " ORDER BY trade_date"
+    return list(connection.execute(query, params))
+
+
+def fetch_indicator_rows(
+    connection: sqlite3.Connection,
+    market: str,
+    symbol: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[sqlite3.Row]:
+    query = """
+    SELECT symbol, market, trade_date, ma5, ma20, ma60, ma120, rsi14, volume_ma5, volume_ma20, high_20d, low_20d, high_52w, low_52w
+    FROM technical_indicators
+    WHERE market = ? AND symbol = ?
+    """
+    params: list[object] = [market, symbol]
+    if start_date:
+        query += " AND trade_date >= ?"
+        params.append(start_date)
+    if end_date:
+        query += " AND trade_date <= ?"
+        params.append(end_date)
+    query += " ORDER BY trade_date"
+    return list(connection.execute(query, params))
+
+
+def fetch_fundamentals_for_symbol(connection: sqlite3.Connection, market: str, symbol: str) -> list[sqlite3.Row]:
+    return list(
+        connection.execute(
+            """
+            SELECT symbol, market, period, eps, revenue_yoy, roe, gross_margin, debt_ratio, free_cash_flow, dividend_yield
+            FROM fundamentals
+            WHERE market = ? AND symbol = ?
+            ORDER BY period
+            """,
+            (market, symbol),
+        )
+    )

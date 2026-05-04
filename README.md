@@ -127,6 +127,11 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - 用途：查看 `backfill_checkpoints` 最新狀態與摘要
 - 用法：`python3 scripts/show_backfill_status.py --db data/stock_agent.sqlite --market TW --symbol 2330.TW --limit 10`
 
+`scripts/backfill_signals.py`
+
+- 用途：用既有 `daily_prices`、`technical_indicators`、`fundamentals` 回填歷史 `signals`
+- 用法：`python3 scripts/backfill_signals.py --config config/config_tw.yaml --start-date 2025-01-01 --end-date 2025-03-31 --symbols 2330.TW`
+
 `scripts/sync_tw_universe.py`
 
 - 用途：從 `FinMind` `TaiwanStockInfo` 同步台股股票池與基本 metadata 到 SQLite
@@ -276,6 +281,21 @@ python3 scripts/backfill_history.py \
   --symbols 2330.TW \
   --chunk-size-days 30
 ```
+
+若要為回測準備歷史選股結果，再跑：
+
+```bash
+python3 scripts/backfill_signals.py \
+  --config config/config_tw.yaml \
+  --start-date 2025-01-01 \
+  --end-date 2025-03-31
+```
+
+注意：
+
+- 這個歷史 `signals` 回填版本只使用當日以前可得的價格、指標、基本面
+- 不納入新聞與社群熱度，避免未來資訊洩漏
+- 因此它是較適合回測的基礎版訊號，不是完整即時版訊號
 
 建議在回填完近期資料後，建立追蹤名單 snapshot：
 
