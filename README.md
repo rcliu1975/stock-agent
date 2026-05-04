@@ -121,6 +121,11 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - 用途：安全回填 `daily_prices` 與 `technical_indicators`
 - 用法：`python3 scripts/backfill_history.py --config config/config_tw.yaml --start-date 2025-01-01 --end-date 2025-12-31 --symbols 2330.TW --chunk-size-days 90 --dry-run`
 
+`scripts/show_backfill_status.py`
+
+- 用途：查看 `backfill_checkpoints` 最新狀態與摘要
+- 用法：`python3 scripts/show_backfill_status.py --db data/stock_agent.sqlite --market TW --symbol 2330.TW --limit 10`
+
 ## 設定檔說明
 
 主要欄位如下：
@@ -187,6 +192,10 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 
 - `TELEGRAM_BOT_TOKEN`
 - `TELEGRAM_CHAT_ID`
+
+若後續要接 FinMind，先準備：
+
+- `FINMIND_API_TOKEN`
 
 未設定時會自動跳過 Telegram 發送，不會中斷 pipeline。
 
