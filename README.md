@@ -177,6 +177,16 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - 用途：安裝 `systemd --user` 版本的台股每日排程
 - 用法：`bash scripts/install_tw_systemd_user.sh`
 
+`scripts/run_tw_maintenance.sh`
+
+- 用途：每 2 小時做一次 database 整理與近期資料收集
+- 用法：`bash scripts/run_tw_maintenance.sh`
+
+`scripts/install_tw_maintenance_systemd_user.sh`
+
+- 用途：安裝 `systemd --user` 版本的 TW maintenance timer，每 2 小時跑一次
+- 用法：`bash scripts/install_tw_maintenance_systemd_user.sh`
+
 ## 設定檔說明
 
 主要欄位如下：
@@ -377,6 +387,14 @@ python3 scripts/build_tw_watchlist.py \
 4. 依 DB 建立最新「前 50 大個股 + 前 20 大 ETF」watchlist
 5. 產生每日報告
 
+`scripts/run_tw_maintenance.sh` 預設會做：
+
+1. 同步全市場台股 metadata 與 active universe
+2. 回填最近 `7` 天價格與技術指標
+3. 重建 watchlist
+4. 執行 SQLite `ANALYZE`
+5. 若 `ENABLE_VACUUM=1` 才額外執行 `VACUUM`
+
 可用環境變數調整：
 
 - `BACKFILL_DAYS`
@@ -385,6 +403,7 @@ python3 scripts/build_tw_watchlist.py \
 - `WATCHLIST_ETFS`
 - `REPORT_TOP_N`
 - `NO_TELEGRAM=1`
+- `OFFLINE=1`
 
 例如：
 
@@ -411,6 +430,27 @@ Mon..Fri 15:50
 
 ```bash
 ON_CALENDAR='Mon..Fri 16:10' bash scripts/install_tw_systemd_user.sh
+```
+
+## 每兩小時維護
+
+若你想每兩小時自動做一次 database 整理與資料收集，用：
+
+```bash
+bash scripts/install_tw_maintenance_systemd_user.sh
+systemctl --user list-timers stock-agent-tw-maintenance.timer
+```
+
+預設排程：
+
+```text
+*-*-* 00/2:00:00
+```
+
+手動執行：
+
+```bash
+bash scripts/run_tw_maintenance.sh
 ```
 
 回填腳本特性：
