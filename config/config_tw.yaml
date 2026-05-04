@@ -1,0 +1,53 @@
+market: TW
+market_name: Taiwan Stock Market
+currency: TWD
+timezone: Asia/Taipei
+database_path: data/stock_agent.sqlite
+log_dir: logs
+
+universe:
+  symbols:
+    - 2330.TW
+    - 2317.TW
+    - 2454.TW
+    - 2382.TW
+
+data_sources:
+  price: yfinance
+  fundamentals: builtin
+  news: builtin
+  social: builtin
+
+technical_indicators:
+  moving_average: [5, 20, 60, 120]
+  rsi_period: 14
+  volume_ma: [5, 20]
+
+score_weights:
+  speculation:
+    price_breakout: 25
+    volume_breakout: 25
+    price_alignment: 20
+    social_heat: 20
+    news_heat: 10
+  growth:
+    revenue_yoy: 35
+    eps_growth: 25
+    gross_margin: 15
+    roe: 15
+    price_trend: 10
+  quality:
+    roe_stability: 30
+    dividend_stability: 20
+    free_cash_flow: 20
+    debt_ratio: 15
+    drawdown_control: 15
+
+report:
+  language: zh-TW
+  output_dir: reports/daily
+  telegram_enabled: true
+  top_n: 10
+
+ai:
+  enabled: false
