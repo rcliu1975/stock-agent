@@ -115,6 +115,19 @@ CREATE TABLE IF NOT EXISTS signals (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(symbol, market, signal_date)
 );
+
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    market TEXT NOT NULL,
+    run_date TEXT NOT NULL,
+    status TEXT NOT NULL,
+    processed_count INTEGER NOT NULL DEFAULT 0,
+    success_count INTEGER NOT NULL DEFAULT 0,
+    failed_count INTEGER NOT NULL DEFAULT 0,
+    report_path TEXT,
+    error_summary TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
@@ -260,3 +273,16 @@ def upsert_signal(connection: sqlite3.Connection, row: dict) -> None:
         row,
     )
 
+
+def insert_pipeline_run(connection: sqlite3.Connection, row: dict) -> None:
+    connection.execute(
+        """
+        INSERT INTO pipeline_runs(
+            market, run_date, status, processed_count, success_count, failed_count, report_path, error_summary
+        )
+        VALUES (
+            :market, :run_date, :status, :processed_count, :success_count, :failed_count, :report_path, :error_summary
+        )
+        """,
+        row,
+    )

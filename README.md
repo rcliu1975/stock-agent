@@ -4,6 +4,7 @@
 
 - 以設定檔驅動的市場分析流程
 - SQLite 資料庫初始化與寫入
+- pipeline run 紀錄與 log 檔
 - 價格資料蒐集，支援 `yfinance` 與內建 fallback 樣本
 - 技術指標、三類評分、每日 Markdown 報告
 - 可選 Telegram 發送
@@ -67,6 +68,11 @@ python3 main.py --config config/config_tw.yaml --no-telegram
 - 用途：執行美股每日報告
 - 用法：`bash scripts/run_us_daily.sh`
 
+`scripts/show_pipeline_status.py`
+
+- 用途：查看最近 pipeline run 與 signals
+- 用法：`python3 scripts/show_pipeline_status.py --db data/stock_agent.sqlite --market TW --limit 5`
+
 ## 環境變數
 
 - `TELEGRAM_BOT_TOKEN`
@@ -74,3 +80,9 @@ python3 main.py --config config/config_tw.yaml --no-telegram
 
 未設定時會自動跳過 Telegram 發送。
 
+## 執行輸出
+
+- 報告：`reports/daily/*_report.md`
+- 資料庫：`data/stock_agent.sqlite`
+- Log：`logs/<market>.log`
+- 執行紀錄：SQLite `pipeline_runs` table

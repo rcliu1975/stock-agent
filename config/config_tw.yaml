@@ -3,6 +3,7 @@ market_name: Taiwan Stock Market
 currency: TWD
 timezone: Asia/Taipei
 database_path: data/stock_agent.sqlite
+log_dir: logs
 
 universe:
   symbols:
@@ -50,4 +51,3 @@ report:
 
 ai:
   enabled: false
-
