@@ -127,6 +127,11 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - 用途：查看 `backfill_checkpoints` 最新狀態與摘要
 - 用法：`python3 scripts/show_backfill_status.py --db data/stock_agent.sqlite --market TW --symbol 2330.TW --limit 10`
 
+`scripts/sync_tw_universe.py`
+
+- 用途：從 `FinMind` `TaiwanStockInfo` 同步台股股票池與基本 metadata 到 SQLite
+- 用法：`python3 scripts/sync_tw_universe.py --config config/config_tw.yaml --exchanges twse,tpex --exclude-industries ETF,上櫃ETF,ETN --stock-id-pattern '^\\d{4}$'`
+
 ## 設定檔說明
 
 主要欄位如下：
@@ -217,6 +222,7 @@ python3 -m unittest discover -s tests -v
 - 單一 symbol 失敗時的容錯
 - CLI 覆蓋參數
 - 歷史回填 chunk 與離線回填
+- `FinMind` symbol mapping 與股票池過濾
 
 ## 歷史回填
 

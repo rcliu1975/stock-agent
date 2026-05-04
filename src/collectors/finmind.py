@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 import os
 from functools import lru_cache
+import re
 from typing import Any
 
 import requests
@@ -135,6 +136,38 @@ def fetch_stock_profile(symbol: str, market: str) -> dict:
         "industry": info.get("industry_category", ""),
         "currency": "TWD",
     }
+
+
+def fetch_tw_stock_universe(
+    include_exchanges: tuple[str, ...] = ("twse", "tpex"),
+    exclude_industry_keywords: tuple[str, ...] = ("ETF", "上櫃ETF", "ETN"),
+    stock_id_pattern: str = r"^\d{4}$",
+) -> list[dict]:
+    allowed = {item.lower() for item in include_exchanges}
+    excluded_keywords = tuple(keyword.lower() for keyword in exclude_industry_keywords)
+    stock_id_regex = re.compile(stock_id_pattern) if stock_id_pattern else None
+    rows: list[dict] = []
+    for stock_id, info in _get_tw_stock_info().items():
+        exchange = str(info.get("type", "")).lower()
+        if allowed and exchange not in allowed:
+            continue
+        if stock_id_regex and not stock_id_regex.match(stock_id):
+            continue
+        industry = str(info.get("industry_category", ""))
+        if excluded_keywords and any(keyword in industry.lower() for keyword in excluded_keywords):
+            continue
+        rows.append(
+            {
+                "symbol": f"{stock_id}.TW" if exchange == "twse" else f"{stock_id}.TWO",
+                "name": info.get("stock_name") or stock_id,
+                "market": "TW",
+                "exchange": exchange or "TW",
+                "industry": industry,
+                "currency": "TWD",
+            }
+        )
+    rows.sort(key=lambda item: item["symbol"])
+    return rows
 
 
 def normalize_tw_symbol(symbol: str) -> str:
