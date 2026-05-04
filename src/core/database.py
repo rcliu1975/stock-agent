@@ -128,6 +128,20 @@ CREATE TABLE IF NOT EXISTS pipeline_runs (
     error_summary TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS backfill_checkpoints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    market TEXT NOT NULL,
+    symbol TEXT NOT NULL,
+    chunk_start TEXT NOT NULL,
+    chunk_end TEXT NOT NULL,
+    status TEXT NOT NULL,
+    rows_written INTEGER NOT NULL DEFAULT 0,
+    last_trade_date TEXT,
+    error_message TEXT,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(market, symbol, chunk_start, chunk_end)
+);
 """
 
 
@@ -286,3 +300,41 @@ def insert_pipeline_run(connection: sqlite3.Connection, row: dict) -> None:
         """,
         row,
     )
+
+
+def upsert_backfill_checkpoint(connection: sqlite3.Connection, row: dict) -> None:
+    connection.execute(
+        """
+        INSERT INTO backfill_checkpoints(
+            market, symbol, chunk_start, chunk_end, status, rows_written, last_trade_date, error_message, updated_at
+        )
+        VALUES (
+            :market, :symbol, :chunk_start, :chunk_end, :status, :rows_written, :last_trade_date, :error_message, CURRENT_TIMESTAMP
+        )
+        ON CONFLICT(market, symbol, chunk_start, chunk_end) DO UPDATE SET
+            status=excluded.status,
+            rows_written=excluded.rows_written,
+            last_trade_date=excluded.last_trade_date,
+            error_message=excluded.error_message,
+            updated_at=CURRENT_TIMESTAMP
+        """,
+        row,
+    )
+
+
+def fetch_backfill_checkpoint(
+    connection: sqlite3.Connection,
+    market: str,
+    symbol: str,
+    chunk_start: str,
+    chunk_end: str,
+) -> sqlite3.Row | None:
+    cursor = connection.execute(
+        """
+        SELECT *
+        FROM backfill_checkpoints
+        WHERE market = ? AND symbol = ? AND chunk_start = ? AND chunk_end = ?
+        """,
+        (market, symbol, chunk_start, chunk_end),
+    )
+    return cursor.fetchone()

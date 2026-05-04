@@ -111,6 +111,16 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - 用途：查看最近 pipeline run 與最新 signals
 - 用法：`python3 scripts/show_pipeline_status.py --db data/stock_agent.sqlite --market TW --limit 5`
 
+`scripts/backup_sqlite.sh`
+
+- 用途：在大量回填前備份 SQLite
+- 用法：`bash scripts/backup_sqlite.sh`
+
+`scripts/backfill_history.py`
+
+- 用途：安全回填 `daily_prices` 與 `technical_indicators`
+- 用法：`python3 scripts/backfill_history.py --config config/config_tw.yaml --start-date 2025-01-01 --end-date 2025-12-31 --symbols 2330.TW --chunk-size-days 90 --dry-run`
+
 ## 設定檔說明
 
 主要欄位如下：
@@ -194,6 +204,48 @@ python3 -m unittest discover -s tests -v
 - pipeline 離線流程
 - 單一 symbol 失敗時的容錯
 - CLI 覆蓋參數
+- 歷史回填 chunk 與離線回填
+
+## 歷史回填
+
+建議順序：
+
+1. 先備份 SQLite
+2. 先用單一 symbol + 小日期區間 + `--dry-run`
+3. 驗證 chunk 與預計筆數合理後，再正式寫入
+4. 先補 `daily_prices` / `technical_indicators`，不要混入 `signals` 與新聞社群
+
+建議命令：
+
+```bash
+bash scripts/backup_sqlite.sh
+python3 scripts/backfill_history.py \
+  --config config/config_tw.yaml \
+  --start-date 2025-01-01 \
+  --end-date 2025-03-31 \
+  --symbols 2330.TW \
+  --chunk-size-days 30 \
+  --dry-run
+```
+
+正式回填：
+
+```bash
+python3 scripts/backfill_history.py \
+  --config config/config_tw.yaml \
+  --start-date 2025-01-01 \
+  --end-date 2025-03-31 \
+  --symbols 2330.TW \
+  --chunk-size-days 30
+```
+
+回填腳本特性：
+
+- 每個 chunk 會寫入 `backfill_checkpoints`
+- 已完成 chunk 預設會自動跳過
+- `--no-resume` 可強制重跑所有 chunk
+- `--dry-run` 只驗證與計數，不寫 `daily_prices` / `technical_indicators`
+- `dry-run` checkpoint 會標記為 `dry_run`，不會被當成正式成功 chunk 跳過
 
 ## 已知限制
 
