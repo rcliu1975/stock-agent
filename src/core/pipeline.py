@@ -11,7 +11,7 @@ from src.collectors.provider import fetch_fundamental, fetch_price_history, fetc
 from src.collectors.social import fetch_social
 from src.core import database
 from src.core.indicators import latest_indicator_row
-from src.core.report import render_report, write_report
+from src.core.report import render_report, render_telegram_html, write_report
 from src.core.scoring import score_stock
 from src.core.universe import resolve_symbols
 from src.notify.telegram import send_message
@@ -92,7 +92,8 @@ def run_pipeline(
     report_path = write_report(config["report"]["output_dir"], config["market"], run_label, report_content)
     telegram_sent = False
     if config["report"].get("telegram_enabled", False) and send_telegram_enabled:
-        telegram_sent = send_message(report_content[:3500])
+        telegram_content = render_telegram_html(config, run_date, ranked_rows, failures=failures)
+        telegram_sent = send_message(telegram_content[:3500])
 
     database.insert_pipeline_run(
         connection,

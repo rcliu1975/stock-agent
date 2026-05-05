@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 from pathlib import Path
 
 
@@ -36,6 +37,36 @@ def render_report(config: dict, run_date: str, ranked_rows: list[dict], failures
             lines.append(f"- {item}")
         lines.append("")
     return "\n".join(lines).strip() + "\n"
+
+
+def render_telegram_html(config: dict, run_date: str, ranked_rows: list[dict], failures: list[str] | None = None) -> str:
+    failure_lines = failures or []
+    market_name = escape(config["market_name"])
+    lines = [
+        f"<b>{market_name} 每日股票報告</b>",
+        f"日期：<code>{escape(run_date)}</code>",
+        f"市場：<code>{escape(config['market'])}</code>",
+        f"追蹤數量：<code>{len(ranked_rows)}</code>",
+        f"失敗數量：<code>{len(failure_lines)}</code>",
+        "",
+        "<b>重點名單</b>",
+    ]
+    if not ranked_rows:
+        lines.append("目前沒有可用標的。")
+    for index, row in enumerate(ranked_rows[:5], start=1):
+        reason = escape(row["reason"])
+        warning = escape(row["warning"])
+        lines.append(
+            f"{index}. <code>{escape(row['symbol'])}</code> {escape(row['category'])}\n"
+            f"投機 {row['speculation_score']:.2f} / 成長 {row['growth_score']:.2f} / 績優 {row['quality_score']:.2f}\n"
+            f"原因：{reason}\n"
+            f"警示：{warning}"
+        )
+    if failure_lines:
+        lines.extend(["", "<b>失敗項目</b>"])
+        for item in failure_lines[:5]:
+            lines.append(f"• {escape(item)}")
+    return "\n".join(lines).strip()
 
 
 def write_report(output_dir: str, market: str, run_label: str, content: str) -> Path:

@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache/
 *.pyc
 data/*.sqlite
+data/*.sqlite-journal
 data/backups/
 logs/*.log
 reports/daily/*.md
