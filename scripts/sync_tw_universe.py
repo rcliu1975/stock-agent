@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import re
 import sys
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -30,6 +31,14 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    try:
+        if args.all_stock_id_pattern:
+            re.compile(args.all_stock_id_pattern)
+        if args.company_stock_id_pattern:
+            re.compile(args.company_stock_id_pattern)
+    except re.error as exc:
+        print(f"Invalid regex pattern: {exc}")
+        return 2
     load_dotenv(ROOT_DIR)
     config = load_config(args.config)
     setup_logging(config.get("log_dir", "logs"), "tw_universe_sync")
