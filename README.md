@@ -224,7 +224,7 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 `scripts/sync_tw_universe.py`
 
 - 用途：從 `FinMind` `TaiwanStockInfo` 同步台股股票池與基本 metadata 到 SQLite
-- 用法：`python3 scripts/sync_tw_universe.py --config config/config_tw.yaml --exchanges twse,tpex --exclude-industries ETF,上櫃ETF,ETN --stock-id-pattern '^\\d{4}$'`
+- 用法：`python3 scripts/sync_tw_universe.py --config config/config_tw.yaml --exchanges twse,tpex --exclude-industries ETN --all-stock-id-pattern '^\\d+[A-Z]?$' --company-stock-id-pattern '^\\d{4}$'`
 
 `scripts/build_tw_watchlist.py`
 

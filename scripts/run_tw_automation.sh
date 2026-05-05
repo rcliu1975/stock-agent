@@ -30,7 +30,8 @@ NO_TELEGRAM="${NO_TELEGRAM:-0}"
 OFFLINE="${OFFLINE:-0}"
 SYNC_EXCHANGES="${SYNC_EXCHANGES:-twse,tpex}"
 SYNC_EXCLUDE_INDUSTRIES="${SYNC_EXCLUDE_INDUSTRIES:-ETN}"
-SYNC_STOCK_ID_PATTERN="${SYNC_STOCK_ID_PATTERN:-^\\d{4}$|^00\\d{2}$|^006\\d{2}$|^008\\d{2}$}"
+SYNC_ALL_STOCK_ID_PATTERN="${SYNC_ALL_STOCK_ID_PATTERN:-^\\d+[A-Z]?$}"
+SYNC_COMPANY_STOCK_ID_PATTERN="${SYNC_COMPANY_STOCK_ID_PATTERN:-^\\d{4}$}"
 
 TODAY="$(TZ="$MARKET_TZ" date +%F)"
 START_DATE="$(TZ="$MARKET_TZ" date -d "$TODAY - $((BACKFILL_DAYS - 1)) days" +%F)"
@@ -50,7 +51,8 @@ if [[ "$ENABLE_UNIVERSE_SYNC" == "1" ]]; then
     --config "$CONFIG_PATH" \
     --exchanges "$SYNC_EXCHANGES" \
     --exclude-industries "$SYNC_EXCLUDE_INDUSTRIES" \
-    --stock-id-pattern "$SYNC_STOCK_ID_PATTERN"
+    --all-stock-id-pattern "$SYNC_ALL_STOCK_ID_PATTERN" \
+    --company-stock-id-pattern "$SYNC_COMPANY_STOCK_ID_PATTERN"
 fi
 
 if [[ "$ENABLE_BACKFILL" == "1" ]]; then

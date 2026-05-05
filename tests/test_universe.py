@@ -2,6 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+import subprocess
 
 from src.collectors.finmind import fetch_tw_all_stock_universe, fetch_tw_stock_universe, select_tw_tracking_symbols
 from src.core.database import activate_market_symbols, connect, deactivate_market_stocks, fetch_stocks, initialize, upsert_stock
@@ -96,6 +97,27 @@ class UniverseTests(unittest.TestCase):
             row = connection.execute("SELECT is_active FROM stocks WHERE symbol='2330.TW' AND market='TW'").fetchone()
             self.assertEqual(row[0], 0)
             connection.close()
+
+    def test_sync_script_rejects_invalid_regex(self):
+        repo_root = Path(__file__).resolve().parent.parent
+        result = subprocess.run(
+            [
+                "python3",
+                "scripts/sync_tw_universe.py",
+                "--config",
+                "config/config_tw.yaml",
+                "--all-stock-id-pattern",
+                r"^\d+[A-Z]?$",
+                "--company-stock-id-pattern",
+                "[",
+            ],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("Invalid regex pattern", result.stdout)
 
 
 if __name__ == "__main__":
