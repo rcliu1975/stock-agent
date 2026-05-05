@@ -46,6 +46,15 @@ bash scripts/install_tw_systemd_user.sh
 systemctl --user list-timers stock-agent-tw-daily.timer
 ```
 
+如果你想從另一台機器或手機遠端瀏覽這些報告，再安裝只讀瀏覽 service：
+
+```bash
+HOST=0.0.0.0 PORT=8787 bash scripts/install_report_browser_systemd_user.sh
+systemctl --user status stock-agent-report-browser.service
+```
+
+如果只在本機打開，保留預設 `HOST=127.0.0.1` 就好。
+
 日報會輸出到：
 
 - `reports/daily/`
@@ -68,6 +77,11 @@ ls reports/daily/
 ```bash
 less reports/daily/2026-05-05_tw_report.md
 ```
+
+如果有啟動報告瀏覽 service，也可以直接用瀏覽器打開：
+
+- `http://127.0.0.1:8787/`
+- `http://你的主機IP:8787/`
 
 `stock-agent` 是一個以設定檔驅動的股票篩選工具，目前已完成可執行 MVP，先聚焦台股流程，並保留美股設定入口。它的目標不是自動下單，而是每天自動整理可讀的觀察名單，讓數值分析、事件摘要與人工判斷能分開處理。
 
@@ -175,6 +189,16 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 
 - 用途：執行美股每日報告
 - 用法：`bash scripts/run_us_daily.sh --offline --no-telegram`
+
+`scripts/report_browser.py`
+
+- 用途：啟動只讀 HTTP server，遠端瀏覽 `reports/daily/` 內的 Markdown 報告
+- 用法：`python3 scripts/report_browser.py --host 127.0.0.1 --port 8787`
+
+`scripts/install_report_browser_systemd_user.sh`
+
+- 用途：安裝報告瀏覽 service 的 `systemd --user` 單元
+- 用法：`HOST=0.0.0.0 PORT=8787 bash scripts/install_report_browser_systemd_user.sh`
 
 `scripts/show_pipeline_status.py`
 
