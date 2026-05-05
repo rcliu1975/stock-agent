@@ -41,9 +41,11 @@ class SignalBackfillTests(unittest.TestCase):
             }
             results = backfill_signals(connection, config, "TW", ["2330.TW"], "2026-03-01", "2026-03-02", dry_run=False)
             count = connection.execute("SELECT COUNT(*) FROM signals").fetchone()[0]
+            action = connection.execute("SELECT action FROM signals ORDER BY signal_date DESC LIMIT 1").fetchone()[0]
             self.assertEqual(len(results), 1)
             self.assertEqual(results[0].rows_written, 2)
             self.assertEqual(count, 2)
+            self.assertIn(action, {"BUY", "WATCH", "HOLD", "SELL", "AVOID"})
             connection.close()
 
     def test_signal_backfill_dry_run_does_not_write(self):

@@ -44,6 +44,7 @@ def apply_cli_overrides(config: dict, symbols: str | None, top_n: int | None) ->
         parsed_symbols = [item.strip() for item in symbols.split(",") if item.strip()]
         if parsed_symbols:
             updated["universe"]["symbols"] = parsed_symbols
+            updated["universe"]["source"] = "manual"
     if top_n is not None and top_n > 0:
         updated["report"]["top_n"] = top_n
     return updated

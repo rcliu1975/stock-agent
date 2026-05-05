@@ -10,11 +10,15 @@ from src.collectors.news import fetch_news
 from src.collectors.provider import fetch_fundamental, fetch_price_history, fetch_stock_profile
 from src.collectors.social import fetch_social
 from src.core import database
+from src.core.decision import make_trade_decision
 from src.core.indicators import latest_indicator_row
 from src.core.report import render_report, render_telegram_html, write_report
 from src.core.scoring import score_stock
 from src.core.universe import resolve_symbols
 from src.notify.telegram import send_message
+
+
+ACTION_PRIORITY = {"BUY": 5, "SELL": 4, "WATCH": 3, "HOLD": 2, "AVOID": 1}
 
 
 @dataclass(slots=True)
@@ -67,6 +71,23 @@ def run_pipeline(
                 news_count=len(news_items),
                 social_heat=social_heat,
             )
+            decision = make_trade_decision(
+                latest_price=prices[-1],
+                indicator=indicator,
+                scores=scores,
+                rules=config.get("decision_rules"),
+            )
+            scores.update(
+                {
+                    "action": decision.action,
+                    "confidence_score": decision.confidence_score,
+                    "entry_price": decision.entry_price,
+                    "stop_loss": decision.stop_loss,
+                    "take_profit": decision.take_profit,
+                    "sell_trigger": decision.sell_trigger,
+                    "decision_reason": decision.decision_reason,
+                }
+            )
             scores["ai_summary"] = summarize_event(symbol, scores["category"], scores["reason"])
             signal_row = {
                 "symbol": symbol,
@@ -83,7 +104,11 @@ def run_pipeline(
             logging.exception("failed symbol=%s", symbol)
 
     ranked_rows.sort(
-        key=lambda row: max(row["speculation_score"], row["growth_score"], row["quality_score"]),
+        key=lambda row: (
+            ACTION_PRIORITY.get(row.get("action"), 0),
+            row.get("confidence_score") or 0,
+            max(row["speculation_score"], row["growth_score"], row["quality_score"]),
+        ),
         reverse=True,
     )
     top_n = config["report"].get("top_n", len(ranked_rows))

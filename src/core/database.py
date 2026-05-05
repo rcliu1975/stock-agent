@@ -109,6 +109,13 @@ CREATE TABLE IF NOT EXISTS signals (
     social_heat_score REAL,
     sentiment_score REAL,
     risk_score REAL,
+    action TEXT,
+    confidence_score REAL,
+    entry_price REAL,
+    stop_loss REAL,
+    take_profit REAL,
+    sell_trigger TEXT,
+    decision_reason TEXT,
     reason TEXT,
     warning TEXT,
     ai_summary TEXT,
@@ -169,7 +176,24 @@ def connect(database_path: str | Path) -> sqlite3.Connection:
 
 def initialize(connection: sqlite3.Connection) -> None:
     connection.executescript(SCHEMA)
+    _ensure_signal_columns(connection)
     connection.commit()
+
+
+def _ensure_signal_columns(connection: sqlite3.Connection) -> None:
+    existing_columns = {row["name"] for row in connection.execute("PRAGMA table_info(signals)")}
+    required_columns = {
+        "action": "TEXT",
+        "confidence_score": "REAL",
+        "entry_price": "REAL",
+        "stop_loss": "REAL",
+        "take_profit": "REAL",
+        "sell_trigger": "TEXT",
+        "decision_reason": "TEXT",
+    }
+    for column_name, column_type in required_columns.items():
+        if column_name not in existing_columns:
+            connection.execute(f"ALTER TABLE signals ADD COLUMN {column_name} {column_type}")
 
 
 def upsert_stock(connection: sqlite3.Connection, stock: dict) -> None:
@@ -285,15 +309,27 @@ def insert_social(connection: sqlite3.Connection, rows: Iterable[dict]) -> None:
 
 
 def upsert_signal(connection: sqlite3.Connection, row: dict) -> None:
+    payload = {
+        "action": None,
+        "confidence_score": None,
+        "entry_price": None,
+        "stop_loss": None,
+        "take_profit": None,
+        "sell_trigger": None,
+        "decision_reason": None,
+        **row,
+    }
     connection.execute(
         """
         INSERT INTO signals(
             symbol, market, signal_date, category, speculation_score, growth_score, quality_score,
-            social_heat_score, sentiment_score, risk_score, reason, warning, ai_summary
+            social_heat_score, sentiment_score, risk_score, action, confidence_score, entry_price,
+            stop_loss, take_profit, sell_trigger, decision_reason, reason, warning, ai_summary
         )
         VALUES (
             :symbol, :market, :signal_date, :category, :speculation_score, :growth_score, :quality_score,
-            :social_heat_score, :sentiment_score, :risk_score, :reason, :warning, :ai_summary
+            :social_heat_score, :sentiment_score, :risk_score, :action, :confidence_score, :entry_price,
+            :stop_loss, :take_profit, :sell_trigger, :decision_reason, :reason, :warning, :ai_summary
         )
         ON CONFLICT(symbol, market, signal_date) DO UPDATE SET
             category=excluded.category,
@@ -303,11 +339,18 @@ def upsert_signal(connection: sqlite3.Connection, row: dict) -> None:
             social_heat_score=excluded.social_heat_score,
             sentiment_score=excluded.sentiment_score,
             risk_score=excluded.risk_score,
+            action=excluded.action,
+            confidence_score=excluded.confidence_score,
+            entry_price=excluded.entry_price,
+            stop_loss=excluded.stop_loss,
+            take_profit=excluded.take_profit,
+            sell_trigger=excluded.sell_trigger,
+            decision_reason=excluded.decision_reason,
             reason=excluded.reason,
             warning=excluded.warning,
             ai_summary=excluded.ai_summary
         """,
-        row,
+        payload,
     )
 
 
