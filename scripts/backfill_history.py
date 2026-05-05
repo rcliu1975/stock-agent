@@ -38,6 +38,18 @@ def main() -> int:
     log_path = setup_logging(config.get("log_dir", "logs"), f"{config['market']}_backfill")
     connection = connect(config["database_path"])
     initialize(connection)
+
+    def on_progress(event) -> None:
+        status = "skipped" if event.skipped else event.status
+        detail = f"rows={event.rows_written}"
+        if event.error_message:
+            detail = f"{detail} error={event.error_message}"
+        print(
+            f"[{event.completed_chunks}/{event.total_chunks}] {event.symbol} "
+            f"{event.chunk_start}..{event.chunk_end} {status} {detail}",
+            flush=True,
+        )
+
     results = backfill_history(
         connection=connection,
         config=config,
@@ -50,6 +62,7 @@ def main() -> int:
         offline=args.offline,
         resume=not args.no_resume,
         dry_run=args.dry_run,
+        progress_callback=on_progress,
     )
     connection.close()
 

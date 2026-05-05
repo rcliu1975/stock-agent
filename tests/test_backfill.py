@@ -1,9 +1,8 @@
-import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 
-from src.core.backfill import backfill_history, chunk_date_ranges
+from src.core.backfill import ProgressEvent, backfill_history, chunk_date_ranges
 from src.core.database import connect, initialize
 
 
@@ -71,4 +70,32 @@ class BackfillTests(unittest.TestCase):
             self.assertEqual(price_count, 0)
             self.assertEqual(indicator_count, 0)
             self.assertEqual(checkpoint_count, 2)
+            connection.close()
+
+    def test_backfill_progress_callback_reports_each_chunk(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "stock_agent.sqlite"
+            connection = connect(db_path)
+            initialize(connection)
+            events: list[ProgressEvent] = []
+            results = backfill_history(
+                connection=connection,
+                config={"data_sources": {"price": "yfinance"}},
+                market="TW",
+                currency="TWD",
+                symbols=["2330.TW"],
+                start_date="2026-03-01",
+                end_date="2026-03-15",
+                chunk_size_days=10,
+                offline=True,
+                resume=True,
+                dry_run=True,
+                progress_callback=events.append,
+            )
+            self.assertEqual(len(results), 2)
+            self.assertEqual(len(events), 2)
+            self.assertEqual((events[0].completed_chunks, events[0].total_chunks), (1, 2))
+            self.assertEqual((events[1].completed_chunks, events[1].total_chunks), (2, 2))
+            self.assertEqual(events[0].status, "dry_run")
+            self.assertFalse(events[0].skipped)
             connection.close()

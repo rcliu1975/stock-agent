@@ -168,6 +168,7 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - `report.output_dir`：報告輸出位置
 - `report.telegram_enabled`：是否啟用 Telegram
 - `report.top_n`：報告保留筆數
+- `decision_rules`：買賣決策門檻，包含最低分數、RSI 區間、量能比、停損與停利百分比
 
 ## 資料流程
 
@@ -179,9 +180,10 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 4. 計算最新技術指標
 5. 補入基本面、新聞與社群樣本資料
 6. 計算投機股、成長股、績優股分數
-7. 寫入 `signals` 與 `pipeline_runs`
-8. 產生 Markdown 報告
-9. 依設定決定是否送出 Telegram
+7. 產生 `BUY` / `WATCH` / `HOLD` / `SELL` / `AVOID` 決策
+8. 寫入 `signals` 與 `pipeline_runs`
+9. 產生 Markdown 報告
+10. 依設定決定是否送出 Telegram
 
 ## SQLite 資料表
 
@@ -205,9 +207,19 @@ python3 main.py --config config/config_tw.yaml --offline --symbols 2330.TW,2454.
 - `report_path`
 - `error_summary`
 
+`signals` 會保存每檔標的每日訊號：
+
+- `action`：`BUY`、`WATCH`、`HOLD`、`SELL`、`AVOID`
+- `confidence_score`：規則式信心分數
+- `entry_price`、`stop_loss`、`take_profit`
+- `sell_trigger`：賣出或風控條件
+- `decision_reason`：決策規則摘要
+
 ## 輸出內容
 
 - 報告：`reports/daily/<timestamp>_<market>_report.md`
+- 日報排名會顯示動作、信心、進場、停損、停利
+- `scripts/show_pipeline_status.py` 會顯示最近 signals 的 action 與價位
 - 資料庫：`data/stock_agent.sqlite`
 - Log：`logs/<market>.log`
 
@@ -241,6 +253,8 @@ python3 -m unittest discover -s tests -v
 - 單一 symbol 失敗時的容錯
 - CLI 覆蓋參數
 - 歷史回填 chunk 與離線回填
+- 買賣決策規則
+- signals schema 自動升級
 - `FinMind` symbol mapping 與股票池過濾
 
 ## 歷史回填

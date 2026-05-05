@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, timedelta
 import logging
+from typing import Callable
 
 from src.collectors.provider import fetch_price_history
 from src.core import database
@@ -18,6 +19,19 @@ class ChunkResult:
     rows_written: int
     skipped: bool
     status: str
+    error_message: str | None = None
+
+
+@dataclass(slots=True, frozen=True)
+class ProgressEvent:
+    symbol: str
+    chunk_start: str
+    chunk_end: str
+    status: str
+    rows_written: int
+    completed_chunks: int
+    total_chunks: int
+    skipped: bool
     error_message: str | None = None
 
 
@@ -66,10 +80,14 @@ def backfill_history(
     offline: bool = False,
     resume: bool = True,
     dry_run: bool = False,
+    progress_callback: Callable[[ProgressEvent], None] | None = None,
 ) -> list[ChunkResult]:
     results: list[ChunkResult] = []
     if not symbols:
         symbols = resolve_symbols(config, connection)
+    chunk_ranges = chunk_date_ranges(start_date, end_date, chunk_size_days)
+    total_chunks = len(symbols) * len(chunk_ranges)
+    completed_chunks = 0
     for symbol in symbols:
         stock = {
             "symbol": symbol,
@@ -80,9 +98,10 @@ def backfill_history(
             "currency": currency,
         }
         database.upsert_stock(connection, stock)
-        for chunk_start, chunk_end in chunk_date_ranges(start_date, end_date, chunk_size_days):
+        for chunk_start, chunk_end in chunk_ranges:
             checkpoint = database.fetch_backfill_checkpoint(connection, market, symbol, chunk_start, chunk_end)
             if resume and checkpoint and checkpoint["status"] == "success":
+                completed_chunks += 1
                 results.append(
                     ChunkResult(
                         symbol=symbol,
@@ -93,6 +112,19 @@ def backfill_history(
                         status="success",
                     )
                 )
+                if progress_callback:
+                    progress_callback(
+                        ProgressEvent(
+                            symbol=symbol,
+                            chunk_start=chunk_start,
+                            chunk_end=chunk_end,
+                            status="success",
+                            rows_written=int(checkpoint["rows_written"]),
+                            completed_chunks=completed_chunks,
+                            total_chunks=total_chunks,
+                            skipped=True,
+                        )
+                    )
                 continue
 
             database.upsert_backfill_checkpoint(
@@ -159,6 +191,7 @@ def backfill_history(
                     },
                 )
                 connection.commit()
+                completed_chunks += 1
                 results.append(
                     ChunkResult(
                         symbol=symbol,
@@ -169,6 +202,19 @@ def backfill_history(
                         status=checkpoint_status,
                     )
                 )
+                if progress_callback:
+                    progress_callback(
+                        ProgressEvent(
+                            symbol=symbol,
+                            chunk_start=chunk_start,
+                            chunk_end=chunk_end,
+                            status=checkpoint_status,
+                            rows_written=rows_written,
+                            completed_chunks=completed_chunks,
+                            total_chunks=total_chunks,
+                            skipped=False,
+                        )
+                    )
                 logging.info(
                     "backfill success symbol=%s chunk=%s..%s rows=%s dry_run=%s",
                     symbol,
@@ -193,6 +239,7 @@ def backfill_history(
                     },
                 )
                 connection.commit()
+                completed_chunks += 1
                 logging.exception("backfill failed symbol=%s chunk=%s..%s", symbol, chunk_start, chunk_end)
                 results.append(
                     ChunkResult(
@@ -205,4 +252,18 @@ def backfill_history(
                         error_message=str(exc),
                     )
                 )
+                if progress_callback:
+                    progress_callback(
+                        ProgressEvent(
+                            symbol=symbol,
+                            chunk_start=chunk_start,
+                            chunk_end=chunk_end,
+                            status="failed",
+                            rows_written=0,
+                            completed_chunks=completed_chunks,
+                            total_chunks=total_chunks,
+                            skipped=False,
+                            error_message=str(exc),
+                        )
+                    )
     return results

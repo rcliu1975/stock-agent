@@ -147,6 +147,8 @@ python3 main.py --config config/config_tw.yaml
 - 價格資料抓取，優先使用 `yfinance`，失敗時回退到內建樣本資料
 - 技術指標計算：`MA5`、`MA20`、`MA60`、`MA120`、`RSI14`、成交量均線
 - 三類評分：投機股、成長股、績優股
+- 規則式買賣決策：`BUY`、`WATCH`、`HOLD`、`SELL`、`AVOID`
+- 每檔 signal 產生信心分數、參考進場、停損、停利與賣出條件
 - Markdown 每日報告輸出
 - Telegram 可選通知
 - pipeline run 紀錄與 log 檔
@@ -189,6 +191,8 @@ stock-agent/
   - `HOST=0.0.0.0 PORT=8787 bash scripts/install_report_browser_systemd_user.sh`
 - 想立刻手動跑一次日報：
   - `python3 main.py --config config/config_tw.yaml`
+- 想只分析指定股票或 ETF：
+  - `python3 main.py --config config/config_tw.yaml --symbols 2330.TW,0050.TW --top-n 2`
 - 想看最近跑批與 signals：
   - `python3 scripts/show_pipeline_status.py --db data/stock_agent.sqlite --market TW --limit 5`
 - 想同步台股股票池與修正 active universe：

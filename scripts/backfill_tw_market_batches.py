@@ -53,9 +53,24 @@ def main() -> int:
     total_price_rows = 0
     total_signal_rows = 0
     failed_batches = 0
+    batches = _chunk_list(symbols, args.batch_size)
+    total_batches = len(batches)
 
-    for batch_index, batch_symbols in enumerate(_chunk_list(symbols, args.batch_size), start=1):
-        print(f"Running batch {batch_index}: {len(batch_symbols)} symbols")
+    for batch_index, batch_symbols in enumerate(batches, start=1):
+        print(f"Running batch {batch_index}/{total_batches}: {len(batch_symbols)} symbols")
+
+        def on_progress(event) -> None:
+            status = "skipped" if event.skipped else event.status
+            detail = f"rows={event.rows_written}"
+            if event.error_message:
+                detail = f"{detail} error={event.error_message}"
+            print(
+                f"  batch {batch_index}/{total_batches} "
+                f"[{event.completed_chunks}/{event.total_chunks}] {event.symbol} "
+                f"{event.chunk_start}..{event.chunk_end} {status} {detail}",
+                flush=True,
+            )
+
         price_results = backfill_history(
             connection=connection,
             config=config,
@@ -68,6 +83,7 @@ def main() -> int:
             offline=args.offline,
             resume=True,
             dry_run=args.dry_run,
+            progress_callback=on_progress,
         )
         batch_failed = any(item.status == "failed" for item in price_results)
         total_price_rows += sum(item.rows_written for item in price_results)

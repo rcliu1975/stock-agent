@@ -5,6 +5,7 @@ from datetime import date
 import logging
 
 from src.core import database
+from src.core.decision import make_trade_decision
 from src.core.scoring import score_stock
 from src.core.universe import resolve_symbols
 
@@ -59,6 +60,23 @@ def backfill_signals(
                     fundamental=fundamental,
                     news_count=0,
                     social_heat=0.0,
+                )
+                decision = make_trade_decision(
+                    latest_price=price,
+                    indicator=indicator,
+                    scores=scores,
+                    rules=config.get("decision_rules"),
+                )
+                scores.update(
+                    {
+                        "action": decision.action,
+                        "confidence_score": decision.confidence_score,
+                        "entry_price": decision.entry_price,
+                        "stop_loss": decision.stop_loss,
+                        "take_profit": decision.take_profit,
+                        "sell_trigger": decision.sell_trigger,
+                        "decision_reason": decision.decision_reason,
+                    }
                 )
                 scores["reason"] = f"歷史回填；{scores['reason']}"
                 scores["warning"] = f"backtest_only; {scores['warning']}"

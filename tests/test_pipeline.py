@@ -1,4 +1,5 @@
 import logging
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,6 +29,11 @@ class PipelineTests(unittest.TestCase):
             result = run_pipeline(config, offline=True, send_telegram_enabled=False)
             self.assertEqual(len(result.ranked_rows), 2)
             self.assertTrue(result.report_path.exists())
+            connection = sqlite3.connect(tmp_path / "stock_agent.sqlite")
+            row = connection.execute("SELECT action, confidence_score FROM signals LIMIT 1").fetchone()
+            self.assertIsNotNone(row[0])
+            self.assertIsNotNone(row[1])
+            connection.close()
 
     def test_pipeline_continues_on_symbol_failure(self):
         with tempfile.TemporaryDirectory() as temp_dir:
