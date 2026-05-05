@@ -1,5 +1,74 @@
 # stock-agent
 
+## 一次安裝後放著跑
+
+如果你的使用情境是：
+
+- 一開始只想跑一次安裝腳本
+- 之後讓它自己定時整理資料庫、收集資料、更新追蹤名單
+- 平常不太管它
+- 有空時再去看每天產生的 Markdown 報告
+
+那就照這個最短流程做。
+
+1. 建立環境並安裝套件
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+```
+
+2. 安裝 user mode `systemd` 排程
+
+```bash
+bash scripts/install_tw_maintenance_systemd_user.sh
+```
+
+3. 確認 timer 已啟用
+
+```bash
+systemctl --user list-timers stock-agent-tw-maintenance.timer
+```
+
+安裝完成後，`stock-agent` 會每兩小時自動做這些事：
+
+- 同步台股 metadata 與 active universe
+- 補最近幾天的價格與技術指標
+- 重建 watchlist
+- 對 SQLite 執行 `ANALYZE`
+
+如果你還要每天產生一份可閱讀的日報，另外再安裝每日報告 timer：
+
+```bash
+bash scripts/install_tw_systemd_user.sh
+systemctl --user list-timers stock-agent-tw-daily.timer
+```
+
+日報會輸出到：
+
+- `reports/daily/`
+
+檔名格式類似：
+
+- `reports/daily/2026-05-05_tw_report.md`
+- `reports/daily/2026-05-05T15-50-00_tw_report.md`
+
+也就是 Markdown `.md` 報告，不是 `.md5`。
+
+你平常只需要偶爾來看：
+
+```bash
+ls reports/daily/
+```
+
+或直接開最新報告：
+
+```bash
+less reports/daily/2026-05-05_tw_report.md
+```
+
 `stock-agent` 是一個以設定檔驅動的股票篩選工具，目前已完成可執行 MVP，先聚焦台股流程，並保留美股設定入口。它的目標不是自動下單，而是每天自動整理可讀的觀察名單，讓數值分析、事件摘要與人工判斷能分開處理。
 
 核心原則：
