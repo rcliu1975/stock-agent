@@ -9,3 +9,4 @@ data/backups/
 logs/*.log
 reports/daily/*.md
 .locks/
+script_tmp/

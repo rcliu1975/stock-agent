@@ -221,6 +221,19 @@ def upsert_stock(connection: sqlite3.Connection, stock: dict) -> None:
     )
 
 
+def stock_exists(connection: sqlite3.Connection, market: str, symbol: str) -> bool:
+    row = connection.execute(
+        """
+        SELECT 1
+        FROM stocks
+        WHERE market = ? AND symbol = ?
+        LIMIT 1
+        """,
+        (market, symbol),
+    ).fetchone()
+    return row is not None
+
+
 def upsert_price_rows(connection: sqlite3.Connection, rows: Iterable[dict]) -> None:
     connection.executemany(
         """

@@ -89,15 +89,16 @@ def backfill_history(
     total_chunks = len(symbols) * len(chunk_ranges)
     completed_chunks = 0
     for symbol in symbols:
-        stock = {
-            "symbol": symbol,
-            "name": symbol,
-            "market": market,
-            "exchange": market,
-            "industry": "",
-            "currency": currency,
-        }
-        database.upsert_stock(connection, stock)
+        if not database.stock_exists(connection, market, symbol):
+            stock = {
+                "symbol": symbol,
+                "name": symbol,
+                "market": market,
+                "exchange": market,
+                "industry": "",
+                "currency": currency,
+            }
+            database.upsert_stock(connection, stock)
         for chunk_start, chunk_end in chunk_ranges:
             checkpoint = database.fetch_backfill_checkpoint(connection, market, symbol, chunk_start, chunk_end)
             if resume and checkpoint and checkpoint["status"] == "success":
