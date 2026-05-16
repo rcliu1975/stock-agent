@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from src.core.backfill import ProgressEvent, backfill_history, chunk_date_ranges
-from src.core.database import connect, initialize
+from src.core.database import connect, initialize, upsert_stock
 
 
 class BackfillTests(unittest.TestCase):
@@ -43,6 +43,47 @@ class BackfillTests(unittest.TestCase):
             self.assertGreater(price_count, 0)
             self.assertGreater(indicator_count, 0)
             self.assertEqual(checkpoint_count, 3)
+            connection.close()
+
+    def test_backfill_preserves_existing_stock_metadata(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            db_path = Path(temp_dir) / "stock_agent.sqlite"
+            connection = connect(db_path)
+            initialize(connection)
+            upsert_stock(
+                connection,
+                {
+                    "symbol": "0050.TW",
+                    "name": "元大台灣50",
+                    "market": "TW",
+                    "exchange": "twse",
+                    "industry": "ETF",
+                    "currency": "TWD",
+                    "is_active": 1,
+                },
+            )
+            connection.commit()
+            backfill_history(
+                connection=connection,
+                config={"data_sources": {"price": "yfinance"}},
+                market="TW",
+                currency="TWD",
+                symbols=["0050.TW"],
+                start_date="2026-03-01",
+                end_date="2026-03-15",
+                chunk_size_days=10,
+                offline=True,
+                resume=True,
+                dry_run=True,
+            )
+            row = connection.execute(
+                """
+                SELECT name, exchange, industry, is_active
+                FROM stocks
+                WHERE market = 'TW' AND symbol = '0050.TW'
+                """
+            ).fetchone()
+            self.assertEqual(tuple(row), ("元大台灣50", "twse", "ETF", 1))
             connection.close()
 
     def test_backfill_dry_run_only_updates_checkpoints(self):
